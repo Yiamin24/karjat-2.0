@@ -23,8 +23,23 @@ export default function ContactFormModal({ isOpen, onClose }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate a brief submission delay (replace with your own API call)
-    await new Promise(r => setTimeout(r, 800));
+
+    try {
+      await fetch('https://hook.us1.make.com/39wm5das7y98hoh8h1lylvf9noffehm5', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          name:      formData.name,
+          phone:     formData.phone,
+          email:     formData.email,
+          message:   formData.message,
+        }),
+      });
+    } catch {
+      // Silently continue — don't block UX if webhook fails
+    }
+
     setIsSubmitting(false);
     setSubmitted(true);
     setTimeout(() => {
