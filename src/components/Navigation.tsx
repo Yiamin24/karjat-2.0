@@ -34,7 +34,15 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      /* Transparent over hero section, solid after it ends.
+         Hero is 550vh tall — check if we've scrolled past it */
+      const hero = document.getElementById('home');
+      if (hero) {
+        const heroBottom = hero.offsetTop + hero.offsetHeight;
+        setScrolled(window.scrollY >= heroBottom - window.innerHeight);
+      } else {
+        setScrolled(window.scrollY > window.innerHeight);
+      }
       if (!userClicked) {
         const ids = ['about', 'location', 'vision', 'amenities', 'lifestyle', 'masterplan', 'contact'];
         for (const id of ids) {
@@ -68,9 +76,9 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#1a5c3a]/98 backdrop-blur-md border-b border-[#d4af37]/20 shadow-lg'
+          ? 'bg-[#0d3320] border-b border-[#d4af37]/25 shadow-xl'
           : 'bg-transparent'
       }`}
     >

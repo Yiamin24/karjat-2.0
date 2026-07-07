@@ -14,12 +14,11 @@ import MasterPlanModal from '@/components/sections/MasterPlanModal';
 import ContactFormModal from '@/components/sections/ContactFormModal';
 
 export default function HomePage() {
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [showMasterPlanModal, setShowMasterPlanModal] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setShowContactForm(true), 2500);
+    const t = setTimeout(() => setShowContactForm(true), 5000);
     return () => clearTimeout(t);
   }, []);
 
@@ -32,7 +31,7 @@ export default function HomePage() {
       <AboutSection />
       <LocationSection />
       <VisionSection />
-      <InfrastructureSection currentSlide={currentSlide} onSlideChange={setCurrentSlide} />
+      <InfrastructureSection />
       <LifestyleSection />
       <MasterplanSection onViewMasterPlan={() => setShowMasterPlanModal(true)} />
       <ContactSection onContactClick={() => setShowContactForm(true)} />

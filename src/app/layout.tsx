@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   description:
     'Where pristine wilderness meets curated luxury. A private sanctuary crafted for the discerning few who demand more than a home.',
   keywords: 'Karjat Blooms, Rudram Realty, luxury estate, Karjat plots, Maharashtra real estate',
+  icons: {
+    icon: 'https://static.wixstatic.com/media/cef78c_d59cd6dd46d442059eaee5a6978b46d5~mv2.png',
+    shortcut: 'https://static.wixstatic.com/media/cef78c_d59cd6dd46d442059eaee5a6978b46d5~mv2.png',
+    apple: 'https://static.wixstatic.com/media/cef78c_d59cd6dd46d442059eaee5a6978b46d5~mv2.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
