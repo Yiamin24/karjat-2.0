@@ -15,6 +15,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   const smoothProg = useRef(0);  // spring position
   const velocity   = useRef(0);  // spring velocity — gives momentum feel
   const duration   = useRef(0);
+  const seekable   = useRef(false); // true once the video is actually seekable
   const rafId      = useRef<number>(0);
   const lastTime   = useRef<number>(0);
 
@@ -39,13 +40,23 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
       }
     };
 
+    const checkSeekable = () => {
+      // The video is only scrub-able once the browser reports a seekable range.
+      // On live hosts this can take a moment while the moov/index is fetched.
+      if (!seekable.current && vid.seekable.length > 0) {
+        seekable.current = true;
+        grabDuration();
+        console.log('[HeroVideo] 🔓 Video is now seekable — scrubbing enabled');
+      }
+    };
+
     vid.addEventListener('loadstart',      () => console.log('[HeroVideo] 📡 loadstart — browser started fetching'));
     vid.addEventListener('progress',       () => console.log('[HeroVideo] 📥 progress — buffered:', vid.buffered.length > 0 ? `${(vid.buffered.end(0)).toFixed(1)}s` : 'nothing yet'));
-    vid.addEventListener('loadedmetadata', () => { console.log('[HeroVideo] 📋 loadedmetadata — duration:', vid.duration, 'seekable:', vid.seekable.length > 0 ? `0–${vid.seekable.end(0).toFixed(2)}s` : 'NOT SEEKABLE'); grabDuration(); }, { once: true });
-    vid.addEventListener('loadeddata',     () => { console.log('[HeroVideo] 🖼️ loadeddata — first frame ready'); grabDuration(); }, { once: true });
-    vid.addEventListener('canplay',        () => console.log('[HeroVideo] ▶️ canplay'));
-    vid.addEventListener('canplaythrough', () => console.log('[HeroVideo] ✅ canplaythrough — fully buffered'));
-    vid.addEventListener('durationchange', () => { console.log('[HeroVideo] 🔄 durationchange:', vid.duration); grabDuration(); });
+    vid.addEventListener('loadedmetadata', () => { console.log('[HeroVideo] 📋 loadedmetadata — duration:', vid.duration, 'seekable:', vid.seekable.length > 0 ? `0–${vid.seekable.end(0).toFixed(2)}s` : 'NOT SEEKABLE'); grabDuration(); checkSeekable(); }, { once: true });
+    vid.addEventListener('loadeddata',     () => { console.log('[HeroVideo] 🖼️ loadeddata — first frame ready'); grabDuration(); checkSeekable(); }, { once: true });
+    vid.addEventListener('canplay',        () => { console.log('[HeroVideo] ▶️ canplay'); checkSeekable(); });
+    vid.addEventListener('canplaythrough', () => { console.log('[HeroVideo] ✅ canplaythrough — fully buffered'); checkSeekable(); });
+    vid.addEventListener('durationchange', () => { console.log('[HeroVideo] 🔄 durationchange:', vid.duration); grabDuration(); checkSeekable(); });
     vid.addEventListener('error',          () => console.error('[HeroVideo] ❌ VIDEO ERROR — code:', vid.error?.code, 'message:', vid.error?.message));
     vid.addEventListener('stalled',        () => console.warn('[HeroVideo] ⏸️ stalled — network stalled'));
     vid.addEventListener('waiting',        () => console.warn('[HeroVideo] ⌛ waiting — buffering'));
@@ -122,16 +133,16 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
         smoothProg.current = rawProg.current;
       }
 
-      /* Write to video — clamp to last frame, never go black at end */
-      if (duration.current > 0) {
+      /* Write to video — only seek once the video is confirmed seekable on live hosts */
+      if (seekable.current && duration.current > 0) {
         /* Leave 1 frame before true end — prevents black last-frame on some codecs */
         const maxTime = duration.current - (1 / 30);
         const targetTime = Math.max(0, Math.min(smoothProg.current * duration.current, maxTime));
         vid.currentTime = targetTime;
       } else {
-        // Log once every ~180 frames (~3s) to avoid spam
+        // Log once every ~3s to avoid spam
         if (Math.round(timestamp / 3000) !== Math.round((timestamp - dt * 1000) / 3000)) {
-          console.warn('[HeroVideo] ⚠️ duration is 0 — video not seekable yet. readyState:', vid.readyState, 'networkState:', vid.networkState);
+          console.warn('[HeroVideo] ⚠️ not seekable yet — readyState:', vid.readyState, 'seekable ranges:', vid.seekable.length, 'duration:', vid.duration);
         }
       }
 
