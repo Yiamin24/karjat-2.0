@@ -16,6 +16,9 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   const velocity   = useRef(0);  // spring velocity — gives momentum feel
   const duration   = useRef(0);
   const seekable   = useRef(false); // true once the video is actually seekable
+  const isSeeking  = useRef(false); // mobile: don't stack seeks while one is pending
+  const lastSeekT  = useRef(-1);    // last time value written — skip duplicate writes
+  const isMobile   = useRef(false); // detected at mount
   const rafId      = useRef<number>(0);
   const lastTime   = useRef<number>(0);
 
@@ -27,9 +30,14 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     console.log('[HeroVideo] 🎬 Video element found, setting up...');
     console.log('[HeroVideo] src:', vid.src || VIDEO_SRC);
 
+    // Detect mobile/tablet — iOS Safari and Android Chrome both need the seek-guard
+    isMobile.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log('[HeroVideo] 📱 isMobile:', isMobile.current);
+
     vid.muted       = true;
     vid.playsInline = true;
-    vid.preload     = 'auto';
+    // mobile browsers ignore preload="auto" — metadata is the highest they honour
+    vid.preload     = isMobile.current ? 'metadata' : 'auto';
 
     const grabDuration = () => {
       if (vid.duration && isFinite(vid.duration)) {
@@ -47,21 +55,33 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
         seekable.current = true;
         grabDuration();
         console.log('[HeroVideo] 🔓 Video is now seekable — scrubbing enabled');
+        // On mobile, kick off a silent play→pause so the browser starts buffering
+        // progressively. Without this, iOS only buffers ~1 chunk then stops.
+        if (isMobile.current) {
+          vid.play().then(() => {
+            vid.pause();
+            vid.currentTime = 0;
+            console.log('[HeroVideo] 📱 Mobile buffer-prime: play→pause done');
+          }).catch(() => {/* autoplay blocked — fine, scrub still works */});
+        }
       }
     };
 
     vid.addEventListener('loadstart',      () => console.log('[HeroVideo] 📡 loadstart — browser started fetching'));
-    vid.addEventListener('progress',       () => console.log('[HeroVideo] 📥 progress — buffered:', vid.buffered.length > 0 ? `${(vid.buffered.end(0)).toFixed(1)}s` : 'nothing yet'));
+    vid.addEventListener('progress',       () => {
+      checkSeekable(); // re-check seekable on every progress event
+      console.log('[HeroVideo] 📥 progress — buffered:', vid.buffered.length > 0 ? `${(vid.buffered.end(0)).toFixed(1)}s` : 'nothing yet');
+    });
     vid.addEventListener('loadedmetadata', () => { console.log('[HeroVideo] 📋 loadedmetadata — duration:', vid.duration, 'seekable:', vid.seekable.length > 0 ? `0–${vid.seekable.end(0).toFixed(2)}s` : 'NOT SEEKABLE'); grabDuration(); checkSeekable(); }, { once: true });
     vid.addEventListener('loadeddata',     () => { console.log('[HeroVideo] 🖼️ loadeddata — first frame ready'); grabDuration(); checkSeekable(); }, { once: true });
     vid.addEventListener('canplay',        () => { console.log('[HeroVideo] ▶️ canplay'); checkSeekable(); });
     vid.addEventListener('canplaythrough', () => { console.log('[HeroVideo] ✅ canplaythrough — fully buffered'); checkSeekable(); });
     vid.addEventListener('durationchange', () => { console.log('[HeroVideo] 🔄 durationchange:', vid.duration); grabDuration(); checkSeekable(); });
     vid.addEventListener('error',          () => console.error('[HeroVideo] ❌ VIDEO ERROR — code:', vid.error?.code, 'message:', vid.error?.message));
-    vid.addEventListener('stalled',        () => console.warn('[HeroVideo] ⏸️ stalled — network stalled'));
+    vid.addEventListener('stalled',        () => { isSeeking.current = false; console.warn('[HeroVideo] ⏸️ stalled — network stalled'); });
     vid.addEventListener('waiting',        () => console.warn('[HeroVideo] ⌛ waiting — buffering'));
-    vid.addEventListener('seeking',        () => console.log('[HeroVideo] 🔍 seeking to:', vid.currentTime.toFixed(3)));
-    vid.addEventListener('seeked',         () => console.log('[HeroVideo] ✔️ seeked — landed at:', vid.currentTime.toFixed(3)));
+    vid.addEventListener('seeking',        () => { isSeeking.current = true;  console.log('[HeroVideo] 🔍 seeking to:', vid.currentTime.toFixed(3)); });
+    vid.addEventListener('seeked',         () => { isSeeking.current = false; console.log('[HeroVideo] ✔️ seeked — landed at:', vid.currentTime.toFixed(3)); });
 
     vid.load();
     console.log('[HeroVideo] 🚀 vid.load() called');
@@ -109,10 +129,14 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
          Tuned to feel like high-end native scroll:
          - Fast enough to feel responsive
          - Slow enough to feel weighted and intentional
+         - Mobile: lighter mass so it catches up before seek stalls
       ──────────────────────────────────────────────────── */
-      const stiffness = 55;   // lower = slower to catch up (more lag = more luxury)
-      const damping   = 18;   // lower = softer deceleration tail
-      const mass      = 2.2;  // heavier = more inertia, slower start/stop
+      const stiffness = 55;
+      const damping   = 18;
+      // Mobile needs a much lighter spring — heavy inertia causes the smooth
+      // position to lag far behind raw scroll, triggering seeks into unbuffered
+      // ranges which stall on iOS/Android.
+      const mass      = isMobile.current ? 0.8 : 2.2;
 
       const spring      = -stiffness * (smoothProg.current - rawProg.current);
       const damp        = -damping * velocity.current;
@@ -136,9 +160,19 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
       /* Write to video — only seek once the video is confirmed seekable on live hosts */
       if (seekable.current && duration.current > 0) {
         /* Leave 1 frame before true end — prevents black last-frame on some codecs */
-        const maxTime = duration.current - (1 / 30);
+        const maxTime    = duration.current - (1 / 30);
         const targetTime = Math.max(0, Math.min(smoothProg.current * duration.current, maxTime));
-        vid.currentTime = targetTime;
+
+        // On mobile: skip seek if one is already pending (stacked seeks stall iOS Safari),
+        // or if the value hasn't meaningfully changed (< 40ms threshold).
+        const minDelta = isMobile.current ? 0.04 : 0.001;
+        if (
+          !isSeeking.current &&
+          Math.abs(targetTime - lastSeekT.current) >= minDelta
+        ) {
+          lastSeekT.current   = targetTime;
+          vid.currentTime     = targetTime;
+        }
       } else {
         // Log once every ~3s to avoid spam
         if (Math.round(timestamp / 3000) !== Math.round((timestamp - dt * 1000) / 3000)) {
@@ -174,7 +208,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
           src={VIDEO_SRC}
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
           aria-hidden
           className="absolute inset-0 w-full h-full object-cover"
         />
