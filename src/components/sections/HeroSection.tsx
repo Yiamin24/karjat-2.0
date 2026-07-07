@@ -1,52 +1,24 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import {
-  motion,
-  useScroll,
-  useTransform,
-  useSpring,
-  useMotionValueEvent,
-} from 'framer-motion';
-import { useLenis } from '@/components/SmoothScroll';
+import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 
-const VIDEO_URL  = 'https://video.wixstatic.com/video/cef78c_f466b469495745e99e5e9548ee4a1b41/1080p/mp4/file.mp4';
-const POSTER_URL = 'https://static.wixstatic.com/media/cef78c_bc58319c52dd43deaad8b604b2606378~mv2.png';
-
-/* Hero animation completes at this scroll progress value */
-const HERO_DONE = 0.95;
+const VIDEO_SRC      = '/hero-scrub-trimmed.mp4';
+const SECTION_HEIGHT = 550; // vh — longer runway = more time to experience the scrub
 
 export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => void }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef     = useRef<HTMLVideoElement>(null);
-  const { lenis }    = useLenis();
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const videoRef   = useRef<HTMLVideoElement>(null);
 
-  /* ── Video ready state ─────────────────────── */
-  const [videoReady, setVideoReady] = useState(false);
-  const videoDuration = useRef<number>(0);
+  /* These refs never cause re-renders */
+  const rawProg    = useRef(0);
+  const smoothProg = useRef(0);  // spring position
+  const velocity   = useRef(0);  // spring velocity — gives momentum feel
+  const duration   = useRef(0);
+  const rafId      = useRef<number>(0);
+  const lastTime   = useRef<number>(0);
 
-  /* ── Hero complete — unlocks the page ──────── */
-  const [heroComplete, setHeroComplete] = useState(false);
-
-  /* ── Scroll lock overlay visibility ─────────
-     Visible until hero is done, then fades out   */
-  const [lockVisible, setLockVisible] = useState(true);
-
-  /* ── Scroll tracking on the 500vh container ─ */
-  const { scrollYProgress } = useScroll({ target: containerRef });
-
-  /* Spring gives the heavy, weighted scrub feel */
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 80,
-    damping:   25,
-    restDelta: 0.0001,
-  });
-
-  /* ─────────────────────────────────────────────
-     VIDEO SETUP
-     We need loadedmetadata before we can set
-     currentTime. Preload the first frame on mount.
-  ───────────────────────────────────────────── */
+  /* ─── VIDEO SETUP ─────────────────────────────────────── */
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
@@ -55,365 +27,415 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     vid.playsInline = true;
     vid.preload     = 'auto';
 
-    const onMeta = () => {
-      videoDuration.current = vid.duration;
-      vid.currentTime = 0;   // force first frame to render (removes black)
-      setVideoReady(true);
+    const grabDuration = () => {
+      if (vid.duration && isFinite(vid.duration)) {
+        duration.current = vid.duration;
+      }
     };
 
-    if (vid.readyState >= 1) {
-      // already loaded (e.g. hot-reload)
-      onMeta();
-    } else {
-      vid.addEventListener('loadedmetadata', onMeta, { once: true });
-    }
-
-    // Kick off buffering
+    vid.addEventListener('loadedmetadata', grabDuration, { once: true });
+    vid.addEventListener('loadeddata',     grabDuration, { once: true });
+    vid.addEventListener('durationchange', grabDuration);
     vid.load();
 
     return () => {
-      vid.removeEventListener('loadedmetadata', onMeta);
+      vid.removeEventListener('loadedmetadata', grabDuration);
+      vid.removeEventListener('loadeddata',     grabDuration);
+      vid.removeEventListener('durationchange', grabDuration);
     };
   }, []);
 
-  /* ─────────────────────────────────────────────
-     VIDEO SCRUB
-     Drive currentTime from smoothProgress.
-     Guard: only write when video is ready.
-  ───────────────────────────────────────────── */
-  useMotionValueEvent(smoothProgress, 'change', (p) => {
-    const vid = videoRef.current;
-    if (!vid || !videoReady) return;
-    const dur = videoDuration.current || vid.duration;
-    if (!dur || !isFinite(dur)) return;
-    vid.currentTime = Math.max(0, Math.min(p * dur, dur));
-  });
-
-  /* ─────────────────────────────────────────────
-     SCROLL LOCK / UNLOCK
-     While heroComplete is false, Lenis is stopped.
-     We let native wheel events still reach the
-     500vh hero div (position: sticky keeps working),
-     but Lenis won't propagate momentum past that.
-  ───────────────────────────────────────────── */
+  /* ─── SCROLL + RAF ────────────────────────────────────────
+     Video scrub is pure DOM — NO setState here.
+     Text overlay reads smoothProg ref via its own RAF.
+  ──────────────────────────────────────────────────────────*/
   useEffect(() => {
-    if (!lenis) return;
-    if (heroComplete) {
-      lenis.start();
-    } else {
-      lenis.stop();
-    }
-    return () => { lenis.start(); }; // cleanup: always re-enable
-  }, [lenis, heroComplete]);
+    const section = sectionRef.current;
+    const vid     = videoRef.current;
+    if (!section || !vid) return;
 
-  /* Watch progress — unlock when hero is done */
-  useMotionValueEvent(smoothProgress, 'change', (p) => {
-    if (!heroComplete && p >= HERO_DONE) {
-      setHeroComplete(true);
-      // Fade lock overlay out briefly before removing
-      setTimeout(() => setLockVisible(false), 600);
-    }
-    // Re-lock if user scrolls back to top
-    if (heroComplete && p < 0.05) {
-      setHeroComplete(false);
-      setLockVisible(true);
-    }
-  });
+    const onScroll = () => {
+      const scrolled = Math.max(0, -section.getBoundingClientRect().top);
+      const total    = section.offsetHeight - window.innerHeight;
+      const next     = Math.min(1, Math.max(0, scrolled / total));
+      /* If direction changed sharply, bleed off velocity for crisp reversal */
+      if (Math.sign(next - rawProg.current) !== Math.sign(velocity.current)) {
+        velocity.current *= 0.3;
+      }
+      rawProg.current = next;
+    };
 
-  /* ─────────────────────────────────────────────
-     FRAME / MASK ANIMATION
-     0% → 8% : inset 14px → 0, radius 12 → 0
-  ───────────────────────────────────────────── */
-  const maskInset  = useTransform(smoothProgress, [0, 0.08], [14, 0]);
-  const maskRadius = useTransform(smoothProgress, [0, 0.08], [12, 0]);
+    const tick = (timestamp: number) => {
+      /* Delta time in seconds — frame-rate independent */
+      const dt = lastTime.current ? Math.min((timestamp - lastTime.current) / 1000, 0.064) : 0.016;
+      lastTime.current = timestamp;
 
-  /* Overlay opacity curve */
-  const overlayOp = useTransform(
-    smoothProgress,
-    [0,    0.05, 0.45, 0.85, 1],
-    [0.78, 0.55, 0.45, 0.58, 0.75],
-  );
+      /* ── Spring physics ─────────────────────────────────
+         Models a damped spring between smoothProg and rawProg.
 
-  /* ── Border accent fades as frame opens ─── */
-  const borderOp = useTransform(smoothProgress, [0, 0.10], [1, 0]);
+         stiffness : How hard the spring pulls toward target
+                     Higher = snappier catch-up
+         damping   : Resistance — controls how quickly it settles
+                     Higher = less bounce, more silky
+         mass      : Inertia — heavier = slower to start/stop
+                     This is what gives the premium weighted feel
 
-  /* ─────────────────────────────────────────────
-     TEXT SEGMENTS
-     Seg 1  → 0.05 – 0.30  (brand reveal)
-     Seg 2  → 0.38 – 0.62  (tagline)
-     Seg 3  → 0.70 – end   (CTA, stays on screen)
-  ───────────────────────────────────────────── */
-  const seg1Op = useTransform(
-    smoothProgress, [0.05, 0.18, 0.26, 0.36], [0, 1, 1, 0],
-  );
-  const seg1Y  = useTransform(smoothProgress, [0.05, 0.18], [22, 0]);
+         Tuned to feel like high-end native scroll:
+         - Fast enough to feel responsive
+         - Slow enough to feel weighted and intentional
+      ──────────────────────────────────────────────────── */
+      const stiffness = 55;   // lower = slower to catch up (more lag = more luxury)
+      const damping   = 18;   // lower = softer deceleration tail
+      const mass      = 2.2;  // heavier = more inertia, slower start/stop
 
-  const seg2Op = useTransform(
-    smoothProgress, [0.38, 0.50, 0.58, 0.68], [0, 1, 1, 0],
-  );
-  const seg2Y  = useTransform(smoothProgress, [0.38, 0.50], [22, 0]);
+      const spring      = -stiffness * (smoothProg.current - rawProg.current);
+      const damp        = -damping * velocity.current;
+      const accel       = (spring + damp) / mass;
 
-  const seg3Op = useTransform(smoothProgress, [0.70, 0.82], [0, 1]);
-  const seg3Y  = useTransform(smoothProgress, [0.70, 0.82], [22, 0]);
+      velocity.current   += accel * dt;
+      smoothProg.current += velocity.current * dt;
 
-  /* Scroll hint fades on first scroll */
-  const hintOp = useTransform(smoothProgress, [0, 0.05], [1, 0]);
+      /* Clamp to valid range */
+      smoothProg.current = Math.min(1, Math.max(0, smoothProg.current));
 
-  /* CTA scales in */
-  const ctaScale = useTransform(smoothProgress, [0.82, 0.92], [0.94, 1]);
+      /* Deadzone: stop micro-oscillation when settled */
+      if (
+        Math.abs(velocity.current) < 0.00005 &&
+        Math.abs(smoothProg.current - rawProg.current) < 0.00005
+      ) {
+        velocity.current   = 0;
+        smoothProg.current = rawProg.current;
+      }
 
-  /* ── Progress bar at bottom of viewport ─── */
-  const progressWidth = useTransform(smoothProgress, [0, 1], ['0%', '100%']);
+      /* Write to video — clamp to last frame, never go black at end */
+      if (duration.current > 0) {
+        /* Leave 1 frame before true end — prevents black last-frame on some codecs */
+        const maxTime = duration.current - (1 / 30);
+        vid.currentTime = Math.max(0, Math.min(smoothProg.current * duration.current, maxTime));
+      }
 
-  /* ── Allow native scroll within the hero div */
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Let the event pass through to update sticky position
-    // (Lenis is stopped but native scroll on the 500vh div still works)
-    e.stopPropagation();
-  }, []);
+      rafId.current = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    rafId.current = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  }, []); // start immediately — no dependency on ready
 
   return (
-    <>
-      {/* ──────────────────────────────────────────
-          SCROLL LOCK OVERLAY
-          Sits on top of everything below the hero.
-          Blocks pointer events reaching sections.
-          Fades out after hero completes.
-      ────────────────────────────────────────── */}
-      {lockVisible && (
-        <motion.div
-          initial={{ opacity: 1 }}
-          animate={{ opacity: heroComplete ? 0 : 1 }}
-          transition={{ duration: 0.5 }}
-          onAnimationComplete={() => {
-            if (heroComplete) setLockVisible(false);
-          }}
-          /* Position below the 500vh hero so it covers the rest of the page */
-          style={{ top: '500vh' }}
-          className="fixed left-0 right-0 bottom-0 z-[200] pointer-events-none"
-          aria-hidden="true"
+    <section
+      ref={sectionRef}
+      id="home"
+      style={{ height: `${SECTION_HEIGHT}vh` }}
+      className="relative"
+    >
+      <div className="sticky top-0 h-screen overflow-hidden bg-[#0d2b12]">
+
+        {/* VIDEO — scrubs with scroll, no posters needed */}
+        <video
+          ref={videoRef}
+          src={VIDEO_SRC}
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover"
         />
-      )}
 
-      {/* ──────────────────────────────────────────
-          MAIN HERO CONTAINER  (500vh scroll space)
-          onWheel handler lets native wheel reach
-          the sticky child while Lenis is stopped.
-      ────────────────────────────────────────── */}
-      <div
-        ref={containerRef}
-        id="home"
-        className="relative h-[500vh]"
-        onWheel={handleWheel}
-      >
-        {/* ── STICKY VIEWPORT ──────────────────── */}
-        <div className="sticky top-0 h-screen overflow-hidden bg-[#0d3320]">
+        {/* Gradient — stronger to ensure text always readable over video */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2 }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/55" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+        </div>
 
-          {/* ── Video frame / mask ─────────────── */}
-          <motion.div
-            style={{
-              position: 'absolute',
-              top:          maskInset,
-              left:         maskInset,
-              right:        maskInset,
-              bottom:       maskInset,
-              borderRadius: maskRadius,
-              overflow:     'hidden',
-            }}
-            className="z-0"
-          >
-            {/* Poster — always present, fades behind video */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={POSTER_URL}
-              alt=""
-              aria-hidden="true"
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-                videoReady ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
+        {/* Text — has its own RAF loop, reads smoothProg ref */}
+        <HeroText smoothProg={smoothProg} onEnquireClick={onEnquireClick} />
 
-            {/* Scrub video — preloaded, no autoplay */}
-            <video
-              ref={videoRef}
-              src={VIDEO_URL}
-              muted
-              playsInline
-              preload="auto"
-              poster={POSTER_URL}
-              aria-hidden="true"
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-                videoReady ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
+        {/* Scroll hint */}
+        <ScrollHint smoothProg={smoothProg} />
 
-            {/* Cinematic gradient overlay */}
-            <motion.div
-              style={{ opacity: overlayOp }}
-              className="absolute inset-0 bg-gradient-to-b from-[#0d3320]/80 via-[#0d3320]/35 to-[#0d3320]/88"
-            />
-          </motion.div>
+        {/* Progress bar */}
+        <ProgressBar smoothProg={smoothProg} />
 
-          {/* ── Gold frame border (opens on first scroll) */}
-          <motion.div
-            style={{ opacity: borderOp }}
-            className="absolute inset-3 sm:inset-4 z-30 border border-[#d4af37]/20 rounded-xl pointer-events-none"
-          />
-
-          {/* ── Progress bar ───────────────────── */}
-          <div className="absolute bottom-0 left-0 right-0 z-40 h-[2px] bg-[#d4af37]/10">
-            <motion.div
-              style={{ width: progressWidth }}
-              className="h-full bg-[#d4af37]"
-            />
-          </div>
-
-          {/* ─────────────────────────────────────
-              TEXT SEGMENTS
-          ───────────────────────────────────── */}
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-
-            {/* SEGMENT 1 · Brand Reveal */}
-            <motion.div
-              style={{ opacity: seg1Op, y: seg1Y }}
-              className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-            >
-              <div className="flex items-center gap-4 mb-6 sm:mb-8">
-                <div className="h-px w-8 sm:w-12 bg-[#d4af37]" />
-                <span className="font-paragraph text-[#d4af37] tracking-[0.35em] uppercase text-[9px] sm:text-[10px] font-semibold">
-                  Private Estate Living · Karjat
-                </span>
-                <div className="h-px w-8 sm:w-12 bg-[#d4af37]" />
-              </div>
-
-              <h1 className="font-heading text-[3.5rem] sm:text-6xl md:text-8xl lg:text-[7.5rem] xl:text-[9rem] text-[#f5f1e8] leading-[0.88] tracking-tight">
-                Karjat
-                <br />
-                <span className="italic text-[#d4af37]">Blooms</span>
-              </h1>
-            </motion.div>
-
-            {/* SEGMENT 2 · Tagline */}
-            <motion.div
-              style={{ opacity: seg2Op, y: seg2Y }}
-              className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-            >
-              <p className="font-paragraph text-xl sm:text-2xl md:text-3xl lg:text-4xl text-[#f5f1e8]/90 max-w-2xl leading-relaxed font-light tracking-wide">
-                Where pristine wilderness
-                <br className="hidden sm:block" />
-                meets curated luxury.
-              </p>
-              <div className="mt-8 sm:mt-10 flex items-center gap-5">
-                <div className="h-px w-14 bg-[#d4af37]/50" />
-                <span className="font-paragraph text-[9px] sm:text-[10px] tracking-[0.45em] uppercase text-[#d4af37]">
-                  Rudram Realty
-                </span>
-                <div className="h-px w-14 bg-[#d4af37]/50" />
-              </div>
-            </motion.div>
-
-            {/* SEGMENT 3 · CTA (stays visible until end) */}
-            <motion.div
-              style={{ opacity: seg3Op, y: seg3Y }}
-              className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center"
-            >
-              <p className="font-paragraph text-[9px] sm:text-[10px] tracking-[0.45em] uppercase text-[#d4af37] mb-5 sm:mb-6">
-                A Private Sanctuary · Karjat, Maharashtra
-              </p>
-
-              <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-[#f5f1e8] italic leading-tight mb-8 sm:mb-10">
-                Begin Your Legacy
-              </h2>
-
-              {/* Stats */}
-              <div className="flex flex-wrap justify-center gap-8 sm:gap-12 mb-10 sm:mb-12">
-                {[
-                  { value: '100+', label: 'Curated Plots' },
-                  { value: '90 km', label: 'From Mumbai' },
-                  { value: '65 km', label: 'From Pune' },
-                ].map((s) => (
-                  <div key={s.label} className="text-center">
-                    <p className="font-heading text-2xl sm:text-3xl text-[#d4af37] leading-none mb-1">
-                      {s.value}
-                    </p>
-                    <p className="font-paragraph text-[8px] sm:text-[9px] tracking-[0.3em] uppercase text-[#f5f1e8]/50">
-                      {s.label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Buttons */}
-              <motion.div
-                style={{ scale: ctaScale }}
-                className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto"
-              >
-                <button
-                  onClick={onEnquireClick}
-                  className="font-paragraph bg-[#d4af37] text-[#0d3320] hover:bg-[#f5f1e8] px-8 sm:px-10 py-3.5 sm:py-4 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase font-bold transition-all duration-500"
-                >
-                  Enquire Now
-                </button>
-
-                <a
-                  href="#about"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="font-paragraph text-[9px] sm:text-[10px] tracking-[0.25em] uppercase text-[#f5f1e8]/65 hover:text-[#d4af37] transition-colors duration-300 flex items-center gap-3 group border border-[#f5f1e8]/20 hover:border-[#d4af37]/40 px-5 sm:px-6 py-3.5 sm:py-4"
-                >
-                  Discover the Estate
-                  <span className="w-4 h-px bg-current transition-all duration-300 group-hover:w-7" />
-                </a>
-              </motion.div>
-
-              {/* "Scroll down" nudge shown when animation done */}
-              <motion.p
-                style={{
-                  opacity: useTransform(smoothProgress, [0.90, 0.98], [0, 1]),
-                }}
-                className="font-paragraph text-[8px] tracking-[0.4em] uppercase text-[#f5f1e8]/30 mt-8"
-              >
-                Continue scrolling to explore
-              </motion.p>
-            </motion.div>
-
-          </div>{/* end text layer */}
-
-          {/* ── Scroll hint (fades immediately on scroll) */}
-          <motion.div
-            style={{ opacity: hintOp }}
-            className="absolute bottom-10 sm:bottom-12 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3"
-          >
-            <span className="font-paragraph text-[7px] sm:text-[8px] uppercase tracking-[0.5em] text-[#f5f1e8]/30">
-              Scroll to explore
-            </span>
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-px h-7 bg-gradient-to-b from-[#d4af37] to-transparent"
-            />
-          </motion.div>
-
-          {/* ── Scrub label (top-right) ─────────── */}
-          <div
-            className="absolute top-24 sm:top-28 right-4 sm:right-6 z-30 flex items-center gap-2 bg-[#0d3320]/60 backdrop-blur-sm border border-[#d4af37]/15 px-3 py-1.5 pointer-events-none"
-            aria-hidden="true"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#d4af37]/50">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-            <span className="font-paragraph text-[8px] tracking-[0.2em] uppercase text-[#f5f1e8]/30">
-              Scroll · Scrub
-            </span>
-          </div>
-
-        </div>{/* end sticky */}
-      </div>{/* end container */}
-    </>
+      </div>
+    </section>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Each UI sub-component has its OWN RAF loop that reads
+   smoothProg ref and writes directly to the DOM via refs.
+   Zero React re-renders during scroll — no flicker.
+═══════════════════════════════════════════════════════════ */
+
+function HeroText({
+  smoothProg,
+  onEnquireClick,
+}: {
+  smoothProg: React.MutableRefObject<number>;
+  onEnquireClick: () => void;
+}) {
+  /* DOM refs — we animate these directly */
+  const eyeRef   = useRef<HTMLDivElement>(null);
+  const s1Ref    = useRef<HTMLDivElement>(null);
+  const s2Ref    = useRef<HTMLDivElement>(null);
+  const s3Ref    = useRef<HTMLDivElement>(null);
+  const nudgeRef = useRef<HTMLDivElement>(null);
+  const rafId    = useRef<number>();
+
+  useEffect(() => {
+    const tick = () => {
+      const p = smoothProg.current;
+
+      /* Eye brow */
+      if (eyeRef.current) {
+        eyeRef.current.style.opacity = String(clamp(p / 0.10));
+      }
+
+      /* S1: Title  0.00–0.38 */
+      if (s1Ref.current) {
+        const op = fadeInOut(p, 0, 0.10, 0.28, 0.38);
+        const y  = slideIn(p, 0, 0.10);
+        s1Ref.current.style.opacity   = String(op);
+        s1Ref.current.style.transform = `translateY(${y}px)`;
+      }
+
+      /* S2: Tagline  0.35–0.66 */
+      if (s2Ref.current) {
+        const op = fadeInOut(p, 0.35, 0.45, 0.56, 0.66);
+        const y  = slideIn(p, 0.35, 0.45);
+        s2Ref.current.style.opacity   = String(op);
+        s2Ref.current.style.transform = `translateY(${y}px)`;
+      }
+
+      /* S3: CTA  0.65–end */
+      if (s3Ref.current) {
+        const op = fadeInOut(p, 0.65, 0.78, 0.99, 1.00);
+        const y  = slideIn(p, 0.65, 0.78);
+        s3Ref.current.style.opacity   = String(op);
+        s3Ref.current.style.transform = `translateY(${y}px)`;
+      }
+
+      /* Continue nudge */
+      if (nudgeRef.current) {
+        nudgeRef.current.style.opacity = String(clamp((p - 0.92) / 0.06));
+      }
+
+      rafId.current = requestAnimationFrame(tick);
+    };
+
+    rafId.current = requestAnimationFrame(tick);
+    return () => { if (rafId.current) cancelAnimationFrame(rafId.current); };
+  }, [smoothProg]);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
+
+      {/* EYEBROW */}
+      <div
+        ref={eyeRef}
+        className="absolute top-[17%] left-0 right-0 flex justify-center"
+        style={{ opacity: 0, willChange: 'opacity' }}
+      >
+        <div className="flex items-center gap-5">
+          <div className="h-px w-10 sm:w-14 bg-[#d4af37]" />
+          <span className="font-paragraph text-[#d4af37] text-[8px] sm:text-[9px] tracking-[0.45em] uppercase font-semibold"
+            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
+            Private Estate Living · Karjat
+          </span>
+          <div className="h-px w-10 sm:w-14 bg-[#d4af37]" />
+        </div>
+      </div>
+
+      {/* S1: TITLE */}
+      <div
+        ref={s1Ref}
+        className="absolute inset-0 flex items-center justify-center text-center px-6"
+        style={{ opacity: 0, willChange: 'opacity, transform' }}
+      >
+        <h1
+          className="font-heading text-white leading-[0.86] tracking-[-0.01em]"
+          style={{
+            fontSize: 'clamp(4rem, 11vw, 10.5rem)',
+            textShadow: '0 2px 20px rgba(0,0,0,0.7)',
+          }}
+        >
+          Karjat
+          <br />
+          <span className="italic text-[#d4af37] font-light">Blooms</span>
+        </h1>
+      </div>
+
+      {/* S2: TAGLINE */}
+      <div
+        ref={s2Ref}
+        className="absolute inset-0 flex flex-col items-center justify-center text-center px-6"
+        style={{ opacity: 0, willChange: 'opacity, transform' }}
+      >
+        <p
+          className="font-paragraph text-white font-light leading-[1.3] max-w-[600px]"
+          style={{
+            fontSize: 'clamp(1.5rem, 3.5vw, 3.2rem)',
+            textShadow: '0 2px 16px rgba(0,0,0,0.75)',
+          }}
+        >
+          Where pristine wilderness
+          <br />
+          meets curated luxury.
+        </p>
+        <div className="mt-8 flex items-center gap-6">
+          <div className="h-px w-14 bg-[#d4af37]" />
+          <span className="font-paragraph text-[#d4af37] text-[9px] tracking-[0.48em] uppercase font-semibold"
+            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
+            Rudram Realty
+          </span>
+          <div className="h-px w-14 bg-[#d4af37]" />
+        </div>
+      </div>
+
+      {/* S3: CTA */}
+      <div
+        ref={s3Ref}
+        className="absolute inset-0 flex flex-col items-center justify-center text-center px-6"
+        style={{ opacity: 0, willChange: 'opacity, transform' }}
+      >
+        <p className="font-paragraph text-[#d4af37] text-[9px] sm:text-[10px] tracking-[0.5em] uppercase mb-5 font-semibold"
+          style={{ textShadow: '0 1px 8px rgba(0,0,0,0.8)' }}>
+          A Private Sanctuary · Karjat, Maharashtra
+        </p>
+        <h2
+          className="font-heading text-white italic font-light leading-[0.88] mb-10"
+          style={{
+            fontSize: 'clamp(2.8rem, 7vw, 7.5rem)',
+            textShadow: '0 2px 20px rgba(0,0,0,0.7)',
+          }}
+        >
+          Begin Your Legacy
+        </h2>
+        <div className="flex flex-wrap justify-center gap-10 sm:gap-16 mb-10">
+          {([['100+','Curated Plots'],['90 km','From Mumbai'],['65 km','From Pune']] as const).map(([v,l]) => (
+            <div key={l} className="text-center">
+              <div className="font-heading text-[#d4af37] leading-none mb-1.5"
+                style={{
+                  fontSize: 'clamp(1.6rem,2.8vw,2.6rem)',
+                  textShadow: '0 1px 10px rgba(0,0,0,0.7)',
+                }}>{v}</div>
+              <div className="font-paragraph text-white/80 text-[8px] tracking-[0.32em] uppercase"
+                style={{ textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-4 pointer-events-auto">
+          <button
+            onClick={onEnquireClick}
+            className="font-paragraph bg-[#d4af37] text-[#060e08] hover:bg-white px-10 py-4 text-[9px] sm:text-[10px] tracking-[0.35em] uppercase font-bold transition-all duration-500 shadow-lg"
+          >
+            Enquire Now
+          </button>
+          <button
+            onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+            className="font-paragraph border border-white/50 hover:border-[#d4af37] text-white hover:text-[#d4af37] px-8 py-4 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase transition-all duration-300 flex items-center gap-3 group"
+            style={{ textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}
+          >
+            Discover Estate
+            <span className="inline-block w-4 h-px bg-current transition-all duration-300 group-hover:w-7" />
+          </button>
+        </div>
+
+        {/* Continue nudge */}
+        <div
+          ref={nudgeRef}
+          className="absolute bottom-10 flex flex-col items-center gap-2"
+          style={{ opacity: 0 }}
+        >
+          <span className="font-paragraph text-[7px] tracking-[0.5em] uppercase text-white/30">
+            Continue scrolling
+          </span>
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-px h-6 bg-gradient-to-b from-[#d4af37]/60 to-transparent"
+          />
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+function ScrollHint({ smoothProg }: { smoothProg: React.MutableRefObject<number> }) {
+  const ref   = useRef<HTMLDivElement>(null);
+  const rafId = useRef<number>();
+
+  useEffect(() => {
+    const tick = () => {
+      if (ref.current) {
+        ref.current.style.opacity = String(Math.max(0, 1 - smoothProg.current / 0.05));
+      }
+      rafId.current = requestAnimationFrame(tick);
+    };
+    rafId.current = requestAnimationFrame(tick);
+    return () => { if (rafId.current) cancelAnimationFrame(rafId.current); };
+  }, [smoothProg]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-none"
+      style={{ zIndex: 10, willChange: 'opacity' }}
+    >
+      <span className="font-paragraph text-[7px] tracking-[0.55em] uppercase text-white/35">
+        Scroll to explore
+      </span>
+      <motion.div
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        className="w-px h-8 bg-gradient-to-b from-[#d4af37] to-transparent"
+      />
+    </div>
+  );
+}
+
+function ProgressBar({ smoothProg }: { smoothProg: React.MutableRefObject<number> }) {
+  const fillRef = useRef<HTMLDivElement>(null);
+  const rafId   = useRef<number>();
+
+  useEffect(() => {
+    const tick = () => {
+      if (fillRef.current) {
+        fillRef.current.style.width = `${smoothProg.current * 100}%`;
+      }
+      rafId.current = requestAnimationFrame(tick);
+    };
+    rafId.current = requestAnimationFrame(tick);
+    return () => { if (rafId.current) cancelAnimationFrame(rafId.current); };
+  }, [smoothProg]);
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white/10" style={{ zIndex: 10 }}>
+      <div ref={fillRef} className="h-full bg-[#d4af37]" style={{ width: '0%' }} />
+    </div>
+  );
+}
+
+/* ── Pure math helpers ── */
+const clamp = (v: number) => Math.min(1, Math.max(0, v));
+
+const fadeInOut = (p: number, inS: number, inE: number, outS: number, outE: number) => {
+  if (p <= inS)  return 0;
+  if (p <= inE)  return clamp((p - inS) / (inE - inS));
+  if (p <= outS) return 1;
+  if (p <= outE) return clamp(1 - (p - outS) / (outE - outS));
+  return 0;
+};
+
+const slideIn = (p: number, inS: number, inE: number, dist = 32) => {
+  if (p <= inS) return dist;
+  if (p >= inE) return 0;
+  return dist * (1 - (p - inS) / (inE - inS));
+};

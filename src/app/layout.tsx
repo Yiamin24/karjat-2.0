@@ -27,7 +27,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${openSans.variable}`}>
-      <body className="bg-cream overflow-x-hidden">{children}</body>
+      {/* overflow-x:clip instead of hidden — clip does NOT create a scroll container
+          so position:sticky works correctly throughout the page */}
+      <body className="bg-cream" style={{ overflowX: 'clip' }}>{children}</body>
     </html>
   );
 }

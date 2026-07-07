@@ -4,7 +4,10 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    /* scroll-behavior: smooth is intentionally removed —
+       hero section uses spring physics for premium feel,
+       smooth + spring = double-smoothed mushy scroll */
+    scroll-behavior: auto;
   }
   body {
     background-color: #f5f1e8;
