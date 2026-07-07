@@ -1,8 +1,28 @@
-node_modules
-.next
-out
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Environment variables — never commit secrets
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# NOTE: public/hero-scrub-trimmed.mp4 is intentionally tracked in git
+# so it deploys with the project on Vercel.
+# If the file exceeds GitHub's 100MB limit, move it to a CDN and
+# update VIDEO_SRC in HeroSection.tsx accordingly.
