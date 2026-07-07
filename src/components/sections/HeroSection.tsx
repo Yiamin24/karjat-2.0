@@ -23,6 +23,9 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     const vid = videoRef.current;
     if (!vid) return;
 
+    console.log('[HeroVideo] 🎬 Video element found, setting up...');
+    console.log('[HeroVideo] src:', vid.src || VIDEO_SRC);
+
     vid.muted       = true;
     vid.playsInline = true;
     vid.preload     = 'auto';
@@ -30,18 +33,30 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     const grabDuration = () => {
       if (vid.duration && isFinite(vid.duration)) {
         duration.current = vid.duration;
+        console.log('[HeroVideo] ✅ Duration captured:', vid.duration.toFixed(2), 's');
+      } else {
+        console.warn('[HeroVideo] ⚠️ Duration not available yet:', vid.duration);
       }
     };
 
-    vid.addEventListener('loadedmetadata', grabDuration, { once: true });
-    vid.addEventListener('loadeddata',     grabDuration, { once: true });
-    vid.addEventListener('durationchange', grabDuration);
+    vid.addEventListener('loadstart',      () => console.log('[HeroVideo] 📡 loadstart — browser started fetching'));
+    vid.addEventListener('progress',       () => console.log('[HeroVideo] 📥 progress — buffered:', vid.buffered.length > 0 ? `${(vid.buffered.end(0)).toFixed(1)}s` : 'nothing yet'));
+    vid.addEventListener('loadedmetadata', () => { console.log('[HeroVideo] 📋 loadedmetadata — duration:', vid.duration, 'seekable:', vid.seekable.length > 0 ? `0–${vid.seekable.end(0).toFixed(2)}s` : 'NOT SEEKABLE'); grabDuration(); }, { once: true });
+    vid.addEventListener('loadeddata',     () => { console.log('[HeroVideo] 🖼️ loadeddata — first frame ready'); grabDuration(); }, { once: true });
+    vid.addEventListener('canplay',        () => console.log('[HeroVideo] ▶️ canplay'));
+    vid.addEventListener('canplaythrough', () => console.log('[HeroVideo] ✅ canplaythrough — fully buffered'));
+    vid.addEventListener('durationchange', () => { console.log('[HeroVideo] 🔄 durationchange:', vid.duration); grabDuration(); });
+    vid.addEventListener('error',          () => console.error('[HeroVideo] ❌ VIDEO ERROR — code:', vid.error?.code, 'message:', vid.error?.message));
+    vid.addEventListener('stalled',        () => console.warn('[HeroVideo] ⏸️ stalled — network stalled'));
+    vid.addEventListener('waiting',        () => console.warn('[HeroVideo] ⌛ waiting — buffering'));
+    vid.addEventListener('seeking',        () => console.log('[HeroVideo] 🔍 seeking to:', vid.currentTime.toFixed(3)));
+    vid.addEventListener('seeked',         () => console.log('[HeroVideo] ✔️ seeked — landed at:', vid.currentTime.toFixed(3)));
+
     vid.load();
+    console.log('[HeroVideo] 🚀 vid.load() called');
 
     return () => {
-      vid.removeEventListener('loadedmetadata', grabDuration);
-      vid.removeEventListener('loadeddata',     grabDuration);
-      vid.removeEventListener('durationchange', grabDuration);
+      // cleanup listeners not needed — element unmounts
     };
   }, []);
 
@@ -111,7 +126,13 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
       if (duration.current > 0) {
         /* Leave 1 frame before true end — prevents black last-frame on some codecs */
         const maxTime = duration.current - (1 / 30);
-        vid.currentTime = Math.max(0, Math.min(smoothProg.current * duration.current, maxTime));
+        const targetTime = Math.max(0, Math.min(smoothProg.current * duration.current, maxTime));
+        vid.currentTime = targetTime;
+      } else {
+        // Log once every ~180 frames (~3s) to avoid spam
+        if (Math.round(timestamp / 3000) !== Math.round((timestamp - dt * 1000) / 3000)) {
+          console.warn('[HeroVideo] ⚠️ duration is 0 — video not seekable yet. readyState:', vid.readyState, 'networkState:', vid.networkState);
+        }
       }
 
       rafId.current = requestAnimationFrame(tick);
