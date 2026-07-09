@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary:    #022921;
+  --bg-secondary:  #01352A;
+  --text-primary:  #EEE4DA;
+  --text-secondary:#8C968D;
+  --accent:        #A8874A;
+  --border:        #44564C;
+  --hover:         #BF9A5A;
+}
+
 @layer base {
   html {
     /* scroll-behavior: smooth is intentionally removed —
@@ -10,9 +20,9 @@
     scroll-behavior: auto;
   }
   body {
-    background-color: #f5f1e8;
-    color: #1a2e1a;
-    font-family: 'Open Sans', system-ui, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-paragraph), system-ui, sans-serif;
   }
 }
 
@@ -30,7 +40,7 @@
   }
   .leaf-pattern {
     background-image:
-      repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(212,175,55,0.025) 40px, rgba(212,175,55,0.025) 80px),
-      repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(212,175,55,0.025) 40px, rgba(212,175,55,0.025) 80px);
+      repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(167,141,95,0.025) 40px, rgba(167,141,95,0.025) 80px),
+      repeating-linear-gradient(-45deg, transparent, transparent 40px, rgba(167,141,95,0.025) 40px, rgba(167,141,95,0.025) 80px);
   }
 }

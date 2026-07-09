@@ -1,19 +1,26 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Open_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans, DM_Sans, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 
-const playfair = Playfair_Display({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
+  weight: ['300', '400', '500', '600', '700', '800'],
   style: ['normal', 'italic'],
   variable: '--font-heading',
   display: 'swap',
 });
 
-const openSans = Open_Sans({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  weight: ['300', '400', '600', '700'],
+  weight: ['300', '400', '500', '600', '700'],
   variable: '--font-paragraph',
+  display: 'swap',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-label',
   display: 'swap',
 });
 
@@ -31,10 +38,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${openSans.variable}`}>
+    <html lang="en" className={`${plusJakarta.variable} ${dmSans.variable} ${spaceGrotesk.variable}`}>
       {/* overflow-x:clip instead of hidden — clip does NOT create a scroll container
           so position:sticky works correctly throughout the page */}
-      <body className="bg-cream" style={{ overflowX: 'clip' }}>{children}</body>
+      <body className="bg-[#022921]" style={{ overflowX: 'clip' }}>{children}</body>
     </html>
   );
 }

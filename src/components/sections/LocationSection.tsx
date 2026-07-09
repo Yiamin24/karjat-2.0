@@ -2,237 +2,206 @@
 
 import { useRef, useEffect } from 'react';
 
-/* ── Reveal hook ── */
 const useReveal = (delay = 0) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setTimeout(() => el.classList.add('is-visible'), delay); obs.unobserve(el); }
-    }, { threshold: 0.08 });
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setTimeout(() => el.classList.add('is-visible'), delay); obs.unobserve(el); } },
+      { threshold: 0.05 }
+    );
     obs.observe(el);
     return () => obs.disconnect();
   }, [delay]);
   return ref;
 };
 
-/* ── Connectivity data (hardcoded — from existing project) ── */
-const CONNECTIVITY = [
-  { label: 'Mumbai via Expressway',  value: '~90 km · ~1.5 hrs' },
-  { label: 'Pune via NH-48',         value: '~65 km · ~1.5 hrs' },
-  { label: 'Karjat Railway Station', value: '5 km · 10 mins' },
-  { label: 'Mumbai Airport',         value: '~100 km · ~2 hrs' },
+const DISTANCES = [
+  { from: 'Mumbai',         via: 'Expressway',  value: '~90',  unit: 'km', time: '~1.5 hrs' },
+  { from: 'Pune',           via: 'NH-48',        value: '~65',  unit: 'km', time: '~1.5 hrs' },
+  { from: 'Karjat Station', via: 'Nearest Rail', value: '5',    unit: 'km', time: '10 mins'  },
+  { from: 'Mumbai Airport', via: 'CSMI Airport', value: '~100', unit: 'km', time: '~2 hrs'   },
 ];
 
-/* ── Location Highlights from CSV ── */
-const HIGHLIGHTS = [
+const LANDMARKS = [
   {
     name: 'Bhivpuri Waterfalls',
     category: 'Nature & Recreation',
-    distance: '8 km',
-    travel: '15 minutes',
+    dist: '8 km', time: '15 min',
     benefit: 'Easy access to a natural wonder, perfect for serene escapes and outdoor activities.',
     map: 'https://maps.google.com/?q=Bhivpuri+Waterfalls',
   },
   {
-    name: 'ND\'s Film World',
+    name: "ND's Film World",
     category: 'Leisure & Entertainment',
-    distance: '15 km',
-    travel: '25 minutes',
+    dist: '15 km', time: '25 min',
     benefit: 'Proximity to a renowned film studio and entertainment complex for cultural experiences.',
-    map: 'https://maps.google.com/?q=ND\'s+Film+World',
+    map: "https://maps.google.com/?q=ND's+Film+World",
   },
   {
     name: 'Reputable Schools',
     category: 'Education',
-    distance: '25 km',
-    travel: '40 minutes',
+    dist: '25 km', time: '40 min',
     benefit: 'Access to quality educational institutions ensuring a bright future for families.',
     map: 'https://maps.google.com/?q=Delhi+Public+School+Khopoli',
   },
   {
     name: 'Major Hospitals',
     category: 'Healthcare',
-    distance: '12 km',
-    travel: '20 minutes',
+    dist: '12 km', time: '20 min',
     benefit: 'Assurance of immediate medical care with well-equipped healthcare facilities nearby.',
     map: 'https://maps.google.com/?q=Karjat+Hospital',
   },
   {
     name: 'Karjat Railway Station',
     category: 'Connectivity',
-    distance: '10 km',
-    travel: '20 minutes',
+    dist: '10 km', time: '20 min',
     benefit: 'Seamless rail access to Mumbai and Pune for daily commutes or weekend getaways.',
     map: 'https://maps.google.com/?q=Karjat+Railway+Station',
   },
 ];
 
-/* ── Category icon ── */
-const CategoryIcon = ({ cat }: { cat: string }) => {
-  const c = cat.toLowerCase();
-  if (c.includes('nature') || c.includes('recreation')) return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M12 22V11M12 11C12 6 7 3 4 5c3 0 5.5 2 8 6zM12 11C12 6 17 3 20 5c-3 0-5.5 2-8 6zM5 22c0-4 3-7 7-7" />
-    </svg>
-  );
-  if (c.includes('connect') || c.includes('rail')) return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <rect x="4" y="3" width="16" height="14" rx="3" /><path d="M4 11h16M8 19l-2 2M16 19l2 2M12 17v2" />
-    </svg>
-  );
-  if (c.includes('health')) return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M12 2a10 10 0 100 20A10 10 0 0012 2zM12 8v8M8 12h8" />
-    </svg>
-  );
-  if (c.includes('edu')) return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M22 10L12 4 2 10l10 6 10-6zM6 12v5c3 2 9 2 12 0v-5" />
-    </svg>
-  );
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-      <path d="M12 22s-8-5.686-8-12a8 8 0 0116 0c0 6.314-8 12-8 12z" /><circle cx="12" cy="10" r="2.5" />
-    </svg>
-  );
-};
-
 export default function LocationSection() {
-  const headerRef  = useReveal(0);
-  const leftRef    = useReveal(150);
-  const rightRef   = useReveal(100);
-  const tableRef   = useReveal(250);
+  const r1 = useReveal(0);
+  const r2 = useReveal(100);
+  const r3 = useReveal(180);
 
   return (
-    <section id="location" className="relative w-full bg-[#0d3320] overflow-hidden">
-      <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/30 to-transparent" />
-      <div className="absolute inset-0 leaf-pattern opacity-30 pointer-events-none" />
+    <section id="location" className="relative w-full bg-[#022921]">
+      <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-[#A8874A]/30 to-transparent" />
 
-      <div className="relative z-10 max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-24 md:py-36">
+      <div className="max-w-[120rem] mx-auto px-6 sm:px-10 lg:px-14 xl:px-16 pt-12 md:pt-16 pb-12 md:pb-16 flex flex-col gap-10 md:gap-12">
 
-        {/* ── HEADER ── */}
-        <div ref={headerRef} className="reveal-on-scroll mb-20">
-          <div className="flex items-baseline gap-5 mb-6">
-            <span className="font-heading leading-none select-none flex-shrink-0"
-              style={{ fontSize: '5rem', color: 'transparent', WebkitTextStroke: '1px #d4af37', opacity: 0.15, lineHeight: 1 }}>
-              02
-            </span>
+        {/* ══════════════════════════════════════════════
+            ROW 1 — Header
+        ══════════════════════════════════════════════ */}
+        <div ref={r1} className="reveal-on-scroll flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+          <div className="flex items-baseline gap-4">
+            <span
+              className="font-heading select-none flex-shrink-0 hidden sm:block"
+              style={{ fontSize: '4rem', color: 'transparent', WebkitTextStroke: '1px #A8874A', opacity: 0.15, lineHeight: 1 }}
+            >02</span>
             <div>
-              <p className="font-paragraph text-[10px] tracking-[0.4em] uppercase text-[#d4af37] mb-2">
-                Location & Connectivity
-              </p>
-              <h2 className="font-heading text-4xl md:text-5xl lg:text-6xl text-[#f5f1e8] leading-tight">
-                Strategic<br />
-                <em className="not-italic text-[#d4af37]">Proximity</em>
+              <p className="font-label text-[9px] tracking-[0.5em] uppercase text-[#A8874A] mb-2">Location & Connectivity</p>
+              <h2 className="font-heading text-[2.4rem] md:text-[3rem] text-[#EEE4DA] leading-[1]">
+                Strategic <span style={{ color: '#A8874A' }}>Proximity</span>
               </h2>
             </div>
           </div>
-          <p className="font-paragraph text-base md:text-lg text-[#f5f1e8]/55 leading-relaxed max-w-2xl border-l-2 border-[#d4af37]/30 pl-5">
-            Karjat Blooms offers the rare privilege of total seclusion paired with effortless city access — positioned at the confluence of expressways, rail, and nature.
+          <p className="font-paragraph text-sm text-[#EEE4DA]/45 max-w-[300px] leading-relaxed border-l border-[#A8874A]/30 pl-4">
+            Seclusion without isolation — at the confluence of expressways, rail, and nature.
           </p>
         </div>
 
-        {/* ── MAIN GRID ── */}
-        <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start mb-16">
+        {/* ══════════════════════════════════════════════
+            ROW 2 — Map (right, 60%) + Distances (left, 40%)
+            Mobile: distances on top, map below
+        ══════════════════════════════════════════════ */}
+        <div ref={r2} className="reveal-on-scroll grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-4 lg:gap-6">
 
-          {/* Left: connectivity + highlights */}
-          <div ref={leftRef} className="reveal-on-scroll lg:col-span-5 space-y-10">
+          {/* LEFT — Key Distances */}
+          <div className="flex flex-col gap-3">
 
-            {/* Key distances */}
-            <div>
-              <p className="font-paragraph text-[9px] tracking-[0.4em] uppercase text-[#d4af37] mb-5">
-                Key Distances
-              </p>
-              {CONNECTIVITY.map((c, i) => (
-                <div key={i}
-                  className="flex items-center justify-between py-4 border-b border-[#d4af37]/10 group hover:border-[#d4af37]/30 transition-colors duration-300">
-                  <div className="flex items-center gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37] flex-shrink-0" />
-                    <span className="font-paragraph text-sm text-[#f5f1e8]/65 group-hover:text-[#f5f1e8] transition-colors">
-                      {c.label}
-                    </span>
+            <p className="font-label text-[8.5px] tracking-[0.45em] uppercase text-[#A8874A]">Key Distances</p>
+
+            {/* Distance rows */}
+            <div className="border border-[#44564C] divide-y divide-[#44564C]/60">
+              {DISTANCES.map((d, i) => (
+                <div
+                  key={i}
+                  className="group relative flex items-center justify-between px-5 py-4 hover:bg-[#01352A]/60 transition-colors duration-300"
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#A8874A] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-bottom" />
+                  <div>
+                    <p className="font-heading text-[#EEE4DA] text-base leading-none">{d.from}</p>
+                    <p className="font-label text-[8px] tracking-[0.22em] uppercase text-[#8C968D] mt-1">via {d.via}</p>
                   </div>
-                  <span className="font-heading text-sm text-[#d4af37]">{c.value}</span>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <div className="flex items-baseline gap-1 justify-end">
+                      <span className="font-heading text-[#A8874A] leading-none" style={{ fontSize: '1.6rem' }}>{d.value}</span>
+                      <span className="font-label text-[#A8874A]/80 text-xs font-semibold">{d.unit}</span>
+                    </div>
+                    <p className="font-label text-[11px] text-[#EEE4DA]/50 font-medium mt-0.5">{d.time}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Highlights grid */}
-            <div>
-              <p className="font-paragraph text-[9px] tracking-[0.4em] uppercase text-[#d4af37] mb-5">
-                Nearby Landmarks
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {HIGHLIGHTS.map((h, i) => (
-                  <a
-                    key={i}
-                    href={h.map}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative bg-[#1a5c3a]/20 border border-[#d4af37]/15 p-5 hover:border-[#d4af37]/50 hover:bg-[#1a5c3a]/35 transition-all duration-400 block"
-                  >
-                    <div className="absolute top-0 left-0 w-0.5 h-0 bg-[#d4af37] group-hover:h-full transition-all duration-400" />
-                    <div className="flex items-center gap-2 mb-2 text-[#d4af37]/60 group-hover:text-[#d4af37] transition-colors">
-                      <CategoryIcon cat={h.category} />
-                      <span className="font-paragraph text-[8px] tracking-[0.25em] uppercase">{h.category}</span>
-                    </div>
-                    <h4 className="font-heading text-sm text-[#f5f1e8] leading-tight mb-1">{h.name}</h4>
-                    <p className="font-paragraph text-[10px] text-[#d4af37]/70 mb-1.5">
-                      {h.distance} · {h.travel}
-                    </p>
-                    <p className="font-paragraph text-[10px] text-[#f5f1e8]/45 leading-relaxed">{h.benefit}</p>
-                  </a>
-                ))}
+            {/* Location badge */}
+            <div className="flex items-center gap-3 border border-[#44564C] bg-[#01352A]/40 px-5 py-3.5 mt-auto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#A8874A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 flex-shrink-0">
+                <path d="M12 22s-8-5.686-8-12a8 8 0 0116 0c0 6.314-8 12-8 12z"/><circle cx="12" cy="10" r="2.5"/>
+              </svg>
+              <div>
+                <p className="font-heading text-[#EEE4DA] text-sm leading-none">Karjat, Raigad District</p>
+                <p className="font-label text-[8px] tracking-[0.25em] uppercase text-[#8C968D] mt-0.5">Maharashtra · India</p>
               </div>
             </div>
 
           </div>
 
-          {/* Right: map image */}
-          <div ref={rightRef} className="reveal-on-scroll lg:col-span-7">
-            <div className="relative border border-[#d4af37]/25 overflow-hidden">
-              <div className="aspect-[16/11] overflow-hidden relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://static.wixstatic.com/media/cef78c_19d02230db324c10b652fee80557945f~mv2.png"
-                  alt="Karjat Blooms Location Map"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-[2.5s]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0d3320]/15 via-transparent to-[#0d3320]/60 pointer-events-none" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0d3320]/90 to-transparent">
-                <div className="flex items-center gap-3 text-[#d4af37]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 flex-shrink-0">
-                    <path d="M12 22s-8-5.686-8-12a8 8 0 0116 0c0 6.314-8 12-8 12z" /><circle cx="12" cy="10" r="2.5" />
-                  </svg>
-                  <div>
-                    <p className="font-heading text-base text-[#f5f1e8]">Karjat, Raigad District</p>
-                    <p className="font-paragraph text-[10px] text-[#f5f1e8]/45 tracking-widest mt-0.5">
-                      Maharashtra · India
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* RIGHT — Map image, full height, fully visible */}
+          <div className="relative border border-[#44564C] overflow-hidden min-h-[260px] lg:min-h-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://static.wixstatic.com/media/cef78c_19d02230db324c10b652fee80557945f~mv2.png"
+              alt="Karjat Blooms Location Map"
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 shadow-[inset_0_0_50px_rgba(2,41,33,0.45)] pointer-events-none" />
           </div>
 
         </div>
 
-        {/* ── STATS STRIP ── */}
-        <div ref={tableRef} className="reveal-on-scroll grid grid-cols-2 md:grid-cols-4 border border-[#d4af37]/20">
-          {[
-            { val: '90 km', lbl: 'From Mumbai' },
-            { val: '65 km', lbl: 'From Pune' },
-            { val: '5 km', lbl: 'Karjat Station' },
-            { val: '5+', lbl: 'Nearby Landmarks' },
-          ].map(({ val, lbl }, i) => (
-            <div key={i} className={`p-8 text-center ${i < 3 ? 'border-r border-[#d4af37]/20' : ''} border-b md:border-b-0 border-[#d4af37]/20`}>
-              <div className="font-heading text-3xl md:text-4xl text-[#d4af37] leading-none mb-2">{val}</div>
-              <div className="font-paragraph text-[9px] tracking-[0.3em] uppercase text-[#f5f1e8]/40">{lbl}</div>
-            </div>
-          ))}
+        {/* ══════════════════════════════════════════════
+            ROW 3 — Nearby Landmarks (5 cards)
+        ══════════════════════════════════════════════ */}
+        <div ref={r3} className="reveal-on-scroll">
+
+          <p className="font-label text-[8.5px] tracking-[0.45em] uppercase text-[#A8874A] mb-4">Nearby Landmarks</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 border border-[#44564C]">
+            {LANDMARKS.map((h, i) => (
+              <a
+                key={i}
+                href={h.map}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`group relative px-5 py-5 flex flex-col gap-2 hover:bg-[#01352A]/60 transition-all duration-300
+                  ${i < LANDMARKS.length - 1 ? 'lg:border-r border-[#44564C]/60' : ''}
+                  ${i < 4 && i % 2 === 0 ? 'sm:border-r border-[#44564C]/60' : ''}
+                  ${i >= 1 ? 'border-t lg:border-t-0 border-[#44564C]/60' : ''}
+                  ${i >= 2 ? 'sm:border-t sm:border-[#44564C]/60' : ''}
+                `}
+              >
+                {/* Top accent on hover */}
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#A8874A] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+
+                {/* Category */}
+                <p className="font-label text-[8px] tracking-[0.3em] uppercase text-[#8C968D] group-hover:text-[#A8874A]/70 transition-colors">
+                  {h.category}
+                </p>
+
+                {/* Name */}
+                <h4 className="font-heading text-[#EEE4DA] text-sm leading-snug flex-1">
+                  {h.name}
+                </h4>
+
+                {/* Benefit text */}
+                <p className="font-paragraph text-[11px] text-[#EEE4DA]/40 leading-relaxed">
+                  {h.benefit}
+                </p>
+
+                {/* Distance + time — big and gold */}
+                <div className="flex items-baseline gap-1.5 pt-3 border-t border-[#44564C]/50 mt-1">
+                  <span className="font-heading text-[#A8874A]" style={{ fontSize: '1.2rem' }}>{h.dist}</span>
+                  <span className="font-label text-[11px] text-[#EEE4DA]/50 font-medium">{h.time} away</span>
+                </div>
+              </a>
+            ))}
+          </div>
+
         </div>
 
       </div>

@@ -24,7 +24,7 @@ const LIFESTYLE = [
     headline: 'Serene Mornings',
     summary: 'Embrace tranquil mornings amidst nature\'s embrace.',
     desc: 'Wake up to the gentle symphony of nature, with panoramic views of lush greenery and the crisp, clean air of Karjat. A perfect start to a day of tranquility and rejuvenation, surrounded by the untouched beauty of your private estate.',
-    image: 'https://static.wixstatic.com/media/cef78c_f009efb89458480c8173f633cc32d610~mv2.png',
+    image: '/Serene morning.png',
   },
   {
     order: 2,
@@ -53,35 +53,35 @@ export default function LifestyleSection() {
   const headerRef = useReveal(0);
 
   return (
-    <section id="lifestyle" className="relative w-full bg-[#f5f1e8] overflow-hidden">
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/35 to-transparent" />
+    <section id="lifestyle" className="relative w-full bg-[#022921] overflow-hidden">
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-[#A8874A]/35 to-transparent" />
 
-      <div className="max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-24 md:py-36">
+      <div className="max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-14 md:py-20">
 
         {/* ── HEADER ── */}
-        <div ref={headerRef} className="reveal-on-scroll mb-20">
+        <div ref={headerRef} className="reveal-on-scroll mb-10">
           <div className="flex items-baseline gap-5 mb-6">
             <span className="font-heading leading-none select-none flex-shrink-0"
-              style={{ fontSize: '5rem', color: 'transparent', WebkitTextStroke: '1px #1a5c3a', opacity: 0.15, lineHeight: 1 }}>
+              style={{ fontSize: '5rem', color: 'transparent', WebkitTextStroke: '1px #01352A', opacity: 0.4, lineHeight: 1 }}>
               05
             </span>
             <div>
-              <p className="font-paragraph text-[10px] tracking-[0.4em] uppercase text-[#1a5c3a]/60 mb-2">
+              <p className="font-label text-[10px] tracking-[0.4em] uppercase text-[#8C968D] mb-2">
                 The Lifestyle
               </p>
-              <h2 className="font-heading text-4xl md:text-5xl lg:text-6xl text-[#1a2e1a] leading-tight">
+              <h2 className="font-heading text-4xl md:text-5xl lg:text-6xl text-[#EEE4DA] leading-tight">
                 Life at<br />
-                <em className="not-italic text-[#1a5c3a]">Karjat Blooms</em>
+                <em className="not-italic text-[#A8874A]">Karjat Blooms</em>
               </h2>
             </div>
           </div>
-          <p className="font-paragraph text-base md:text-lg text-[#1a2e1a]/55 leading-relaxed max-w-2xl border-l-2 border-[#d4af37]/40 pl-5">
+          <p className="font-paragraph text-base md:text-lg text-[#EEE4DA]/55 leading-relaxed max-w-2xl border-l-2 border-[#A8874A]/40 pl-5">
             Beyond a residence — a way of life. Every detail of Karjat Blooms is calibrated to deliver an existence of meaning, stillness, and understated elegance.
           </p>
         </div>
 
         {/* ── CARDS: alternating layout ── */}
-        <div className="space-y-24 md:space-y-36">
+        <div className="space-y-14 md:space-y-20">
           {LIFESTYLE.map((item, i) => {
             const isEven = i % 2 === 0;
             const cardRef = useReveal(i * 60); // eslint-disable-line react-hooks/rules-of-hooks
@@ -94,7 +94,7 @@ export default function LifestyleSection() {
                 {/* Image */}
                 <div className={`relative group ${!isEven ? 'lg:order-2' : ''}`}>
                   {/* Shadow offset block */}
-                  <div className={`absolute w-full h-full border border-[#1a5c3a]/15 bg-[#1a5c3a]/6 z-0 ${
+                  <div className={`absolute w-full h-full border border-[#44564C] bg-[#01352A]/40 z-0 ${
                     isEven ? '-bottom-4 -right-4 sm:-bottom-6 sm:-right-6' : '-top-4 -left-4 sm:-top-6 sm:-left-6'
                   }`} />
                   <div className="relative z-10 aspect-[4/3] overflow-hidden">
@@ -104,12 +104,12 @@ export default function LifestyleSection() {
                       alt={item.headline}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2.5s]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#1a2e1a]/25 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#022921]/25 via-transparent to-transparent" />
                   </div>
                   {/* Tag */}
                   <div className={`absolute top-6 z-20 ${isEven ? '-right-4 sm:-right-5' : '-left-4 sm:-left-5'}`}>
-                    <div className="bg-[#1a5c3a] px-4 py-2">
-                      <span className="font-paragraph text-[9px] tracking-[0.3em] uppercase text-[#d4af37]">
+                    <div className="bg-[#01352A] px-4 py-2 border border-[#44564C]">
+                      <span className="font-label text-[9px] tracking-[0.3em] uppercase text-[#A8874A]">
                         {String(item.order).padStart(2, '0')}
                       </span>
                     </div>
@@ -119,25 +119,25 @@ export default function LifestyleSection() {
                 {/* Text */}
                 <div className={`${!isEven ? 'lg:order-1' : ''}`}>
                   <div className="flex items-center gap-3 mb-6">
-                    <span className="font-heading text-6xl text-[#1a5c3a]/8 leading-none select-none">
+                    <span className="font-heading text-6xl text-[#01352A] leading-none select-none">
                       {String(item.order).padStart(2, '0')}
                     </span>
-                    <div className="h-px flex-1 bg-[#1a5c3a]/15" />
+                    <div className="h-px flex-1 bg-[#44564C]" />
                   </div>
 
-                  <p className="font-paragraph text-[9px] tracking-[0.4em] uppercase text-[#1a5c3a]/50 mb-3">
+                  <p className="font-label text-[9px] tracking-[0.4em] uppercase text-[#8C968D] mb-3">
                     {item.summary}
                   </p>
 
-                  <h3 className="font-heading text-3xl md:text-4xl lg:text-5xl text-[#1a2e1a] leading-tight mb-6">
+                  <h3 className="font-heading text-3xl md:text-4xl lg:text-5xl text-[#EEE4DA] leading-tight mb-6">
                     {item.headline}
                   </h3>
 
-                  <p className="font-paragraph text-base md:text-lg text-[#1a2e1a]/60 leading-relaxed mb-8 border-l-2 border-[#d4af37]/40 pl-5">
+                  <p className="font-paragraph text-base md:text-lg text-[#EEE4DA]/60 leading-relaxed mb-8 border-l-2 border-[#A8874A]/40 pl-5">
                     {item.desc}
                   </p>
 
-                  <div className="h-px w-12 bg-[#d4af37]" />
+                  <div className="h-px w-12 bg-[#A8874A]" />
                 </div>
               </div>
             );

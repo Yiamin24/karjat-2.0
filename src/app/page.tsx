@@ -23,7 +23,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen selection:bg-[#d4af37] selection:text-[#0d3320]">
+    <div className="min-h-screen selection:bg-[#A8874A] selection:text-[#022921]">
       <Navigation onEnquireClick={() => setShowContactForm(true)} />
 
       <HeroSection onEnquireClick={() => setShowContactForm(true)} />

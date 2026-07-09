@@ -26,11 +26,11 @@ export default function MasterPlanModal({ isOpen, onClose }: Props) {
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 260 }}
             onClick={e => e.stopPropagation()}
-            className="relative w-full max-w-6xl my-auto bg-[#1a5c3a] border-2 border-[#d4af37]/60 overflow-hidden"
+            className="relative w-full max-w-6xl my-auto bg-[#01352A] border-2 border-[#A8874A]/60 overflow-hidden"
           >
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-10 h-10 bg-[#d4af37] hover:bg-[#f5f1e8] text-[#0d3320] flex items-center justify-center transition-all duration-300"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-10 h-10 bg-[#A8874A] hover:bg-[#BF9A5A] text-[#022921] flex items-center justify-center transition-all duration-300"
               aria-label="Close master plan"
             >
               <CloseIcon />

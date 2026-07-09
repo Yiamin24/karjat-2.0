@@ -34,8 +34,6 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      /* Transparent over hero section, solid after it ends.
-         Hero is 550vh tall — check if we've scrolled past it */
       const hero = document.getElementById('home');
       if (hero) {
         const heroBottom = hero.offsetTop + hero.offsetHeight;
@@ -78,7 +76,7 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#0d3320] border-b border-[#d4af37]/25 shadow-xl'
+          ? 'bg-[#01352A] border-b border-[#44564C] shadow-xl'
           : 'bg-transparent'
       }`}
     >
@@ -98,8 +96,8 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
               className="w-10 h-10 object-contain brightness-0 invert flex-shrink-0"
             />
             <div>
-              <p className="font-heading text-sm tracking-[0.2em] text-[#d4af37] leading-none">RUDRAM</p>
-              <p className="font-paragraph text-[9px] tracking-[0.3em] uppercase text-[#f5f1e8]/60">Realty</p>
+              <p className="font-heading text-sm tracking-[0.2em] text-[#A8874A] leading-none">RUDRAM</p>
+              <p className="font-label text-[9px] tracking-[0.3em] uppercase text-[#EEE4DA]/60">Realty</p>
             </div>
           </button>
 
@@ -110,13 +108,13 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
                 key={link.label}
                 href={link.href}
                 onClick={(e) => { e.preventDefault(); scrollTo(link.href); }}
-                className={`font-paragraph text-xs tracking-[0.15em] uppercase relative group transition-colors duration-300 ${
-                  activeSection === link.href.replace('#', '') ? 'text-[#d4af37]' : 'text-[#f5f1e8]/80 hover:text-[#d4af37]'
+                className={`font-label text-xs tracking-[0.15em] uppercase relative group transition-colors duration-300 ${
+                  activeSection === link.href.replace('#', '') ? 'text-[#A8874A]' : 'text-[#EEE4DA]/80 hover:text-[#A8874A]'
                 }`}
                 whileHover={{ y: -2 }}
               >
                 {link.label}
-                <span className={`absolute -bottom-0.5 left-0 h-px bg-[#d4af37] transition-all duration-300 ${activeSection === link.href.replace('#', '') ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                <span className={`absolute -bottom-0.5 left-0 h-px bg-[#A8874A] transition-all duration-300 ${activeSection === link.href.replace('#', '') ? 'w-full' : 'w-0 group-hover:w-full'}`} />
               </motion.a>
             ))}
           </nav>
@@ -125,13 +123,13 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
           <div className="flex items-center gap-3">
             <button
               onClick={onEnquireClick}
-              className="bg-[#d4af37] text-[#0d3320] hover:bg-[#f5f1e8] px-5 sm:px-6 py-2 text-[10px] sm:text-xs tracking-[0.2em] uppercase font-bold transition-all duration-500"
+              className="bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] px-5 sm:px-6 py-2 text-[10px] sm:text-xs tracking-[0.2em] uppercase font-bold font-label transition-all duration-500"
             >
               Enquire
             </button>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden w-10 h-10 flex items-center justify-center text-[#f5f1e8] hover:text-[#d4af37] transition-colors"
+              className="md:hidden w-10 h-10 flex items-center justify-center text-[#EEE4DA] hover:text-[#A8874A] transition-colors"
               aria-label="Toggle menu"
             >
               {mobileOpen ? <CloseIcon /> : <MenuIcon />}
@@ -146,14 +144,14 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
           transition={{ duration: 0.3 }}
           className="md:hidden overflow-hidden"
         >
-          <div className="flex flex-col gap-4 pt-4 pb-2 border-t border-[#d4af37]/20 mt-2">
+          <div className="flex flex-col gap-4 pt-4 pb-2 border-t border-[#44564C] mt-2">
             {navLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 onClick={(e) => { e.preventDefault(); scrollTo(link.href); }}
-                className={`font-paragraph text-sm tracking-[0.15em] uppercase pl-4 transition-colors duration-300 ${
-                  activeSection === link.href.replace('#', '') ? 'text-[#d4af37]' : 'text-[#f5f1e8]/80'
+                className={`font-label text-sm tracking-[0.15em] uppercase pl-4 transition-colors duration-300 ${
+                  activeSection === link.href.replace('#', '') ? 'text-[#A8874A]' : 'text-[#EEE4DA]/80'
                 }`}
               >
                 {link.label}

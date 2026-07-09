@@ -49,9 +49,9 @@ const LinkedinIcon = () => (
 
 const GoldDivider = () => (
   <div className="flex items-center gap-4 w-full">
-    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#d4af37]/40 to-transparent" />
-    <div className="rotate-45 w-1.5 h-1.5 border border-[#d4af37]/60" />
-    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#d4af37]/40 to-transparent" />
+    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#A8874A]/40 to-transparent" />
+    <div className="rotate-45 w-1.5 h-1.5 border border-[#A8874A]/60" />
+    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#A8874A]/40 to-transparent" />
   </div>
 );
 
@@ -81,27 +81,26 @@ export default function ContactSection({ onContactClick }: { onContactClick: () 
   return (
     <>
       {/* ── Contact Section ── */}
-      <section id="contact" className="relative w-full bg-[#f5f1e8] overflow-hidden">
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/30 to-transparent" />
-        {/* Faint bg image */}
+      <section id="contact" className="relative w-full bg-[#022921] overflow-hidden">
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-[#A8874A]/30 to-transparent" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="https://static.wixstatic.com/media/cef78c_bc58319c52dd43deaad8b604b2606378~mv2.png"
             alt="" aria-hidden="true" className="w-full h-full object-cover opacity-[0.04]" />
         </div>
 
-        <div className="relative z-10 max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-24 md:py-36">
+        <div className="relative z-10 max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-14 md:py-20">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
 
             {/* Left */}
             <div className="space-y-10">
               <div ref={r1} className="reveal-on-scroll">
-                <p className="font-paragraph text-[10px] tracking-[0.35em] uppercase text-[#1a5c3a]/60 mb-5">Enquire</p>
-                <h2 className="font-heading text-5xl md:text-6xl xl:text-7xl text-[#1a2e1a] leading-tight mb-6">
+                <p className="font-label text-[10px] tracking-[0.35em] uppercase text-[#8C968D] mb-5">Enquire</p>
+                <h2 className="font-heading text-5xl md:text-6xl xl:text-7xl text-[#EEE4DA] leading-tight mb-6">
                   Begin Your<br />
-                  <em className="not-italic text-[#1a5c3a]">Legacy</em>
+                  <em className="not-italic text-[#A8874A]">Legacy</em>
                 </h2>
-                <p className="font-paragraph text-base md:text-lg text-[#1a2e1a]/60 max-w-md leading-relaxed border-l-2 border-[#d4af37]/40 pl-5">
+                <p className="font-paragraph text-base md:text-lg text-[#EEE4DA]/60 max-w-md leading-relaxed border-l-2 border-[#A8874A]/40 pl-5">
                   We invite you to experience Karjat Blooms firsthand. Schedule a private site visit or request our detailed estate brochure.
                 </p>
               </div>
@@ -109,12 +108,12 @@ export default function ContactSection({ onContactClick }: { onContactClick: () 
               <div ref={r2} className="reveal-on-scroll space-y-6">
                 {contactItems.map((item, i) => (
                   <div key={i} className="flex items-start gap-5 group cursor-pointer">
-                    <div className="w-11 h-11 border border-[#1a5c3a]/20 flex items-center justify-center text-[#1a5c3a]/50 group-hover:bg-[#1a5c3a] group-hover:border-[#1a5c3a] group-hover:text-[#f5f1e8] transition-all duration-300 flex-shrink-0">
+                    <div className="w-11 h-11 border border-[#44564C] flex items-center justify-center text-[#8C968D] group-hover:bg-[#A8874A] group-hover:border-[#A8874A] group-hover:text-[#022921] transition-all duration-300 flex-shrink-0">
                       {item.icon}
                     </div>
                     <div>
-                      <p className="font-paragraph text-[10px] tracking-[0.2em] uppercase text-[#1a5c3a]/50 mb-1">{item.title}</p>
-                      <p className="font-paragraph text-sm text-[#1a2e1a]/70 leading-relaxed">{item.detail}</p>
+                      <p className="font-label text-[10px] tracking-[0.2em] uppercase text-[#8C968D] mb-1">{item.title}</p>
+                      <p className="font-paragraph text-sm text-[#EEE4DA]/70 leading-relaxed">{item.detail}</p>
                     </div>
                   </div>
                 ))}
@@ -123,26 +122,26 @@ export default function ContactSection({ onContactClick }: { onContactClick: () 
 
             {/* Right: CTA card */}
             <div ref={r3} className="reveal-on-scroll">
-              <div className="relative bg-[#1a5c3a] p-10 md:p-12">
-                <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-[#d4af37]/50" />
-                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-[#d4af37]/50" />
+              <div className="relative bg-[#01352A] border border-[#44564C] p-10 md:p-12">
+                <div className="absolute top-0 left-0 w-10 h-10 border-t-2 border-l-2 border-[#A8874A]/50" />
+                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-2 border-r-2 border-[#A8874A]/50" />
                 <div className="relative z-10">
-                  <p className="font-paragraph text-[10px] tracking-[0.35em] uppercase text-[#d4af37] mb-4">Private Viewing</p>
-                  <h3 className="font-heading text-3xl text-[#f5f1e8] mb-4 leading-tight">Schedule a Site Visit</h3>
-                  <p className="font-paragraph text-sm text-[#f5f1e8]/60 leading-relaxed mb-8">
+                  <p className="font-label text-[10px] tracking-[0.35em] uppercase text-[#A8874A] mb-4">Private Viewing</p>
+                  <h3 className="font-heading text-3xl text-[#EEE4DA] mb-4 leading-tight">Schedule a Site Visit</h3>
+                  <p className="font-paragraph text-sm text-[#EEE4DA]/60 leading-relaxed mb-8">
                     Experience the serenity of Karjat Blooms for yourself. Our estate hosts exclusive private viewings — by appointment only.
                   </p>
                   <div className="space-y-3 mb-8">
                     {['Complimentary site tour', 'Detailed project brochure', 'One-on-one consultation', 'Flexible scheduling'].map((pt, i) => (
-                      <div key={i} className="flex items-center gap-3 text-[#f5f1e8]/70 font-paragraph text-sm">
-                        <div className="w-1 h-1 bg-[#d4af37] rounded-full flex-shrink-0" />
+                      <div key={i} className="flex items-center gap-3 text-[#EEE4DA]/70 font-paragraph text-sm">
+                        <div className="w-1 h-1 bg-[#A8874A] rounded-full flex-shrink-0" />
                         <span>{pt}</span>
                       </div>
                     ))}
                   </div>
                   <button
                     onClick={onContactClick}
-                    className="w-full bg-[#d4af37] text-[#0d3320] hover:bg-[#f5f1e8] py-5 text-xs tracking-[0.25em] uppercase font-bold transition-all duration-500"
+                    className="w-full bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] py-5 text-xs tracking-[0.25em] uppercase font-bold font-label transition-all duration-500"
                   >
                     Request a Visit
                   </button>
@@ -155,24 +154,24 @@ export default function ContactSection({ onContactClick }: { onContactClick: () 
       </section>
 
       {/* ── Footer ── */}
-      <footer className="bg-[#0d3320] border-t border-[#d4af37]/15">
-        <div className="max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-12 md:py-16">
+      <footer className="bg-[#022921] border-t border-[#44564C]">
+        <div className="max-w-[120rem] mx-auto px-6 sm:px-8 lg:px-16 xl:px-20 py-6 md:py-8">
           {/* Top row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 mb-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-5">
             <div className="flex items-center gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="https://static.wixstatic.com/media/cef78c_bec60a55156b45779b30a3287c15a165~mv2.png"
-                alt="Rudram Realty" className="w-10 h-10 object-contain brightness-0 invert flex-shrink-0" />
+                alt="Rudram Realty" className="w-9 h-9 object-contain brightness-0 invert flex-shrink-0" />
               <div>
-                <p className="font-heading text-base text-[#f5f1e8] tracking-[0.2em] uppercase">Rudram Realty</p>
-                <p className="font-paragraph text-[9px] tracking-[0.35em] uppercase text-[#d4af37]/70">Crafting Legacy Estates</p>
+                <p className="font-heading text-sm text-[#EEE4DA] tracking-[0.2em] uppercase">Rudram Realty</p>
+                <p className="font-label text-[8px] tracking-[0.35em] uppercase text-[#A8874A]">Crafting Legacy Estates</p>
               </div>
             </div>
             <nav className="flex flex-wrap gap-5 md:gap-8">
               {navLinks.map((link) => (
                 <a key={link.label} href={link.href}
                   onClick={(e) => { e.preventDefault(); document.getElementById(link.href.replace('#', ''))?.scrollIntoView({ behavior: 'smooth' }); }}
-                  className="font-paragraph text-xs tracking-[0.15em] uppercase text-[#f5f1e8]/40 hover:text-[#d4af37] transition-colors duration-300">
+                  className="font-label text-xs tracking-[0.15em] uppercase text-[#8C968D] hover:text-[#A8874A] transition-colors duration-300">
                   {link.label}
                 </a>
               ))}
@@ -182,23 +181,23 @@ export default function ContactSection({ onContactClick }: { onContactClick: () 
           <GoldDivider />
 
           {/* Bottom row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-5 mt-8">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-5">
+            <div className="flex items-center gap-3">
               {socialLinks.map((s) => (
                 <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}
-                  className="w-9 h-9 border border-[#d4af37]/25 flex items-center justify-center text-[#d4af37]/60 hover:border-[#d4af37] hover:text-[#d4af37] transition-all duration-300">
+                  className="w-8 h-8 border border-[#44564C] flex items-center justify-center text-[#8C968D] hover:border-[#A8874A] hover:text-[#A8874A] transition-all duration-300">
                   {s.icon}
                 </a>
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-4 sm:gap-6">
               {['Privacy Policy', 'Terms', 'Disclaimer'].map((item) => (
-                <a key={item} href="#" className="font-paragraph text-[10px] tracking-[0.15em] uppercase text-[#f5f1e8]/25 hover:text-[#d4af37]/60 transition-colors duration-300">{item}</a>
+                <a key={item} href="#" className="font-label text-[10px] tracking-[0.15em] uppercase text-[#EEE4DA]/60 hover:text-[#A8874A] transition-colors duration-300">{item}</a>
               ))}
             </div>
           </div>
 
-          <p className="font-paragraph text-[10px] text-[#f5f1e8]/20 text-center mt-8 tracking-wide">
+          <p className="font-paragraph text-[10px] text-[#8C968D]/40 text-center mt-5 tracking-wide">
             &copy; {new Date().getFullYear()} Rudram Realty. All rights reserved. &middot; Karjat Blooms is a Rudram Realty project.
           </p>
         </div>
