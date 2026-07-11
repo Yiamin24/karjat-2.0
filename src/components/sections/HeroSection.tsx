@@ -8,7 +8,8 @@ const VIDEO_DESKTOP = IS_DEV ? '/Hero-scrub.mp4'        : `${BASE_URL}/Hero-scru
 const VIDEO_MOBILE  = IS_DEV ? '/Hero-scrub-mobile.mp4' : `${BASE_URL}/Hero-scrub-mobile.mp4`;
 const POSTER_SRC    = IS_DEV ? '/Hero-poster.jpg'       : `${BASE_URL}/Hero-poster.jpg`;
 
-const SECTION_HEIGHT = 500; // vh
+const SECTION_HEIGHT_DESKTOP = 500; // vh — desktop scroll travel
+const SECTION_HEIGHT_MOBILE  = 280; // vh — mobile: less scrolling needed
 
 export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   const barRef     = useRef<HTMLDivElement>(null);
 
   const isMobile = useRef(false);
+  const sectionH = useRef(SECTION_HEIGHT_DESKTOP);
   const rafId = useRef(0);
 
   /* ── VIDEO SETUP ──────────────────────────────────────── */
@@ -43,6 +45,12 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     // Detect mobile once on mount
     isMobile.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       || window.innerWidth < 768;
+
+    // Apply correct section height
+    sectionH.current = isMobile.current ? SECTION_HEIGHT_MOBILE : SECTION_HEIGHT_DESKTOP;
+    if (sectionRef.current) {
+      sectionRef.current.style.height = `${sectionH.current}vh`;
+    }
 
     // Set correct source for device
     vid.src        = isMobile.current ? VIDEO_MOBILE : VIDEO_DESKTOP;
@@ -171,7 +179,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
 
   return (
     <section ref={sectionRef} id="home"
-      style={{ height: `${SECTION_HEIGHT}vh` }} className="relative">
+      style={{ height: `${SECTION_HEIGHT_DESKTOP}vh` }} className="relative">
       <div className="sticky top-0 h-screen overflow-hidden bg-[#022921]">
 
         {/* POSTER — visible instantly */}
