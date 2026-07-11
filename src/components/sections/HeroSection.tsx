@@ -2,13 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 
-const IS_DEV     = process.env.NODE_ENV === 'development';
-const VIDEO_SRC  = IS_DEV
-  ? '/Hero-scrub.mp4'
-  : 'https://github.com/Yiamin24/karjat-2.0/releases/download/v1.0.0/Hero-scrub.mp4';
-const POSTER_SRC = IS_DEV
-  ? '/Hero-poster.jpg'
-  : 'https://github.com/Yiamin24/karjat-2.0/releases/download/v1.0.0/Hero-poster.jpg';
+const IS_DEV        = process.env.NODE_ENV === 'development';
+const BASE_URL      = 'https://github.com/Yiamin24/karjat-2.0/releases/download/v1.0.0';
+const VIDEO_DESKTOP = IS_DEV ? '/Hero-scrub.mp4'        : `${BASE_URL}/Hero-scrub.mp4`;
+const VIDEO_MOBILE  = IS_DEV ? '/Hero-scrub-mobile.mp4' : `${BASE_URL}/Hero-scrub-mobile.mp4`;
+const POSTER_SRC    = IS_DEV ? '/Hero-poster.jpg'       : `${BASE_URL}/Hero-poster.jpg`;
 
 const SECTION_HEIGHT = 500; // vh
 
@@ -34,6 +32,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   const hintRef    = useRef<HTMLDivElement>(null);
   const barRef     = useRef<HTMLDivElement>(null);
 
+  const isMobile = useRef(false);
   const rafId = useRef(0);
 
   /* ── VIDEO SETUP ──────────────────────────────────────── */
@@ -41,15 +40,37 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     const vid = videoRef.current;
     if (!vid) return;
 
-    vid.muted       = true;
+    // Detect mobile once on mount
+    isMobile.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      || window.innerWidth < 768;
+
+    // Set correct source for device
+    vid.src        = isMobile.current ? VIDEO_MOBILE : VIDEO_DESKTOP;
+    vid.muted      = true;
     vid.playsInline = true;
-    vid.preload     = 'auto';
+    vid.preload    = 'auto';
 
     const onReady = () => {
       if (vidReady.current) return;
       if (vid.readyState >= 2 && vid.duration && isFinite(vid.duration)) {
         vidDur.current   = vid.duration;
-        vidReady.current = true;
+
+        if (isMobile.current) {
+          // iOS Safari REQUIRES a play→pause to unlock currentTime seeking
+          // on a paused video. Without this, seeks are silently ignored.
+          vid.play()
+            .then(() => {
+              vid.pause();
+              vid.currentTime = 0;
+              vidReady.current = true;
+            })
+            .catch(() => {
+              // Autoplay blocked — still mark ready, seeks may be limited
+              vidReady.current = true;
+            });
+        } else {
+          vidReady.current = true;
+        }
       }
     };
 
@@ -145,8 +166,8 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
           className="absolute inset-0 w-full h-full object-cover"
           style={{ zIndex: 0 }} />
 
-        {/* VIDEO */}
-        <video ref={videoRef} src={VIDEO_SRC} poster={POSTER_SRC}
+        {/* VIDEO — src set in useEffect based on device */}
+        <video ref={videoRef} poster={POSTER_SRC}
           muted playsInline preload="auto" disablePictureInPicture aria-hidden
           width={1920} height={1080}
           className="absolute inset-0 w-full h-full object-cover"
