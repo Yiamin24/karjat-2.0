@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const IS_DEV        = process.env.NODE_ENV === 'development';
 const BASE_URL      = 'https://github.com/Yiamin24/karjat-2.0/releases/download/v1.0.0';
@@ -8,20 +8,27 @@ const VIDEO_DESKTOP = IS_DEV ? '/Hero-scrub.mp4'        : `${BASE_URL}/Hero-scru
 const VIDEO_MOBILE  = IS_DEV ? '/Hero-scrub-mobile.mp4' : `${BASE_URL}/Hero-scrub-mobile.mp4`;
 const POSTER_SRC    = IS_DEV ? '/Hero-poster.jpg'       : `${BASE_URL}/Hero-poster.jpg`;
 
-const SECTION_HEIGHT_DESKTOP = 500; // vh — desktop scroll travel
-const SECTION_HEIGHT_MOBILE  = 280; // vh — mobile: less scrolling needed
+const SECTION_HEIGHT_DESKTOP = 500; // vh
+const SECTION_HEIGHT_MOBILE  = 280; // vh
 
 export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const videoRef   = useRef<HTMLVideoElement>(null);
+  const blobUrlRef = useRef<string | null>(null); // track blob URL for cleanup
 
-  // scroll progress 0→1
-  const targetP  = useRef(0);
-  const displayP = useRef(0); // lerped for text only
+  // scrub state — all refs, zero re-renders in hot loop
+  const targetRef = useRef(0);  // raw scroll progress 0→1, written by scroll listener only
+  const curRef    = useRef(0);  // lerped video progress, written by rAF only
+  const displayP  = useRef(0);  // separate slower lerp for text scenes
+  const rafRef    = useRef(0);
 
-  // video state
-  const vidDur    = useRef(0);
-  const vidReady  = useRef(false);
+  // layout state
+  const isMobileRef   = useRef(false);
+  const layoutWidthRef = useRef(0);
+  const reducedMotion = useRef(false);
+
+  // poster visibility — the ONE state that needs a render
+  const [posterVisible, setPosterVisible] = useState(true);
 
   // text refs
   const eyebrowRef = useRef<HTMLDivElement>(null);
@@ -33,121 +40,176 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   const hintRef    = useRef<HTMLDivElement>(null);
   const barRef     = useRef<HTMLDivElement>(null);
 
-  const isMobile = useRef(false);
-  const sectionH = useRef(SECTION_HEIGHT_DESKTOP);
-  const rafId = useRef(0);
-
-  /* ── VIDEO SETUP ──────────────────────────────────────── */
+  /* ── INIT: mobile detect, reduced-motion, blob load ─── */
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    // Detect mobile once on mount
-    isMobile.current = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-      || window.innerWidth < 768;
-
-    // Apply correct section height
-    sectionH.current = isMobile.current ? SECTION_HEIGHT_MOBILE : SECTION_HEIGHT_DESKTOP;
-    if (sectionRef.current) {
-      sectionRef.current.style.height = `${sectionH.current}vh`;
-    }
-
-    // Set correct source for device
-    vid.src        = isMobile.current ? VIDEO_MOBILE : VIDEO_DESKTOP;
-    vid.muted      = true;
-    vid.playsInline = true;
-    vid.preload    = 'auto';
-
-    const onReady = () => {
-      if (vidReady.current) return;
-      if (vid.readyState >= 2 && vid.duration && isFinite(vid.duration)) {
-        vidDur.current   = vid.duration;
-
-        if (isMobile.current) {
-          // iOS Safari REQUIRES a play→pause to unlock currentTime seeking
-          // on a paused video. Without this, seeks are silently ignored.
-          vid.play()
-            .then(() => {
-              vid.pause();
-              vid.currentTime = 0;
-              vidReady.current = true;
-            })
-            .catch(() => {
-              // Autoplay blocked — still mark ready, seeks may be limited
-              vidReady.current = true;
-            });
-        } else {
-          vidReady.current = true;
-        }
-      }
+    // — Layout calc — defined inside effect so it always closes over live refs —
+    const recalcLayout = () => {
+      if (!sectionRef.current) return;
+      const h = isMobileRef.current ? SECTION_HEIGHT_MOBILE : SECTION_HEIGHT_DESKTOP;
+      sectionRef.current.style.height = `${h}vh`;
     };
 
-    vid.addEventListener('loadeddata',     onReady);
-    vid.addEventListener('canplay',        onReady);
-    vid.addEventListener('canplaythrough', onReady);
-    vid.load();
+    // — Mobile detection via pointer capability (more reliable than UA sniff) —
+    isMobileRef.current =
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+      window.innerWidth <= 860;
+    layoutWidthRef.current = window.innerWidth;
+
+    // — prefers-reduced-motion —
+    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Apply initial section height
+    recalcLayout();
+
+    // If reduced motion: skip video entirely, keep poster, skip blob fetch
+    if (reducedMotion.current) return;
+
+    // — setAttribute for iOS attribute-level requirements —
+    vid.setAttribute('playsinline', '');
+    vid.setAttribute('muted', '');
+    vid.muted       = true;
+    vid.playsInline = true;
+    vid.preload     = 'auto';
+
+    const videoUrl = isMobileRef.current ? VIDEO_MOBILE : VIDEO_DESKTOP;
+
+    // — BLOB LOAD: guarantees full seekable range on any host —
+    // Plain src= on a static/dev server can return seekable=[0,0], freezing scrub at frame 0.
+    fetch(videoUrl)
+      .then(r => {
+        if (!r.ok) throw new Error(`fetch ${r.status}`);
+        return r.blob();
+      })
+      .then(blob => {
+        if (!videoRef.current) return;
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        videoRef.current.src = url;
+        videoRef.current.load();
+      })
+      .catch(() => {
+        // Fallback to plain URL if fetch fails (e.g. CORS in dev)
+        if (!videoRef.current) return;
+        videoRef.current.src = videoUrl;
+        videoRef.current.load();
+      });
+
+    // — Poster: hide only after the first real frame is decoded —
+    // 'loadedmetadata' fires before any frame on iOS — 'seeked' is the safe gate.
+    vid.addEventListener('seeked', () => setPosterVisible(false), { once: true });
+
+    // — iOS prime: on first user touch/pointer, play→pause to unlock decoder —
+    // Without this, the first seek after page load shows a black frame on iOS Safari.
+    const primeVideo = () => {
+      if (!isMobileRef.current || !videoRef.current) return;
+      const v = videoRef.current;
+      const p = v.play();
+      if (p?.then) {
+        p.then(() => {
+          try { v.pause(); } catch (_) {}
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('pointerdown', primeVideo, { once: true, passive: true });
+    window.addEventListener('touchstart',  primeVideo, { once: true, passive: true });
 
     return () => {
-      vid.removeEventListener('loadeddata',     onReady);
-      vid.removeEventListener('canplay',        onReady);
-      vid.removeEventListener('canplaythrough', onReady);
+      window.removeEventListener('pointerdown', primeVideo);
+      window.removeEventListener('touchstart',  primeVideo);
+      // Revoke blob URL to free memory
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
   }, []);
 
-  /* ── SCROLL → targetP ─────────────────────────────────── */
+  /* ── RESIZE: width-only guard ────────────────────────── */
+  useEffect(() => {
+    const recalcLayout = () => {
+      if (!sectionRef.current) return;
+      const h = isMobileRef.current ? SECTION_HEIGHT_MOBILE : SECTION_HEIGHT_DESKTOP;
+      sectionRef.current.style.height = `${h}vh`;
+    };
+
+    const onResize = () => {
+      // On mobile, the browser fires resize on every URL-bar slide-in/out (height-only change).
+      // Re-running layout on those would jump scroll position — ignore them.
+      if (isMobileRef.current && window.innerWidth === layoutWidthRef.current) return;
+      layoutWidthRef.current = window.innerWidth;
+      recalcLayout();
+    };
+
+    window.addEventListener('resize',            onResize);
+    window.addEventListener('orientationchange', recalcLayout);
+    return () => {
+      window.removeEventListener('resize',            onResize);
+      window.removeEventListener('orientationchange', recalcLayout);
+    };
+  }, []);
+
+  /* ── SCROLL LISTENER → targetRef (read only) ─────────── */
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
 
-    const calc = () => {
+    const getProgress = () => {
       const rect   = section.getBoundingClientRect();
-      const travel = section.offsetHeight - window.innerHeight;
-      targetP.current = Math.min(1, Math.max(0, -rect.top / travel));
+      const total  = rect.height - window.innerHeight; // total scrollable distance
+      const scrolled = -rect.top;                       // how far we've scrolled in
+      return Math.min(1, Math.max(0, scrolled / total));
     };
 
-    // On mobile, scroll events can be coalesced/delayed by the browser.
-    // touchmove fires synchronously during the gesture — more reliable.
-    let touchThrottle = 0;
-    const onTouch = () => {
-      touchThrottle++;
-      if (touchThrottle % 2 === 0) calc(); // every 2nd touch event
-    };
+    // scroll event: only writes targetRef, never touches video
+    const onScroll = () => { targetRef.current = getProgress(); };
+    // touchmove fires synchronously during gesture — supplements coalesced scroll on iOS
+    const onTouch  = () => { targetRef.current = getProgress(); };
 
-    window.addEventListener('scroll',    calc,    { passive: true });
-    window.addEventListener('touchmove', onTouch, { passive: true });
-    calc();
+    window.addEventListener('scroll',    onScroll, { passive: true });
+    window.addEventListener('touchmove', onTouch,  { passive: true });
+    onScroll(); // seed
 
     return () => {
-      window.removeEventListener('scroll',    calc);
+      window.removeEventListener('scroll',    onScroll);
       window.removeEventListener('touchmove', onTouch);
     };
   }, []);
 
-  /* ── MASTER RAF: video seek + text + UI ──────────────── */
+  /* ── MASTER rAF: lerp → seek + text + UI ─────────────── */
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
 
-    let lastScrollP = -1;
+    // lerp factor: 1 = instant (for reduced-motion), 0.18 = smooth easing
+    const lerpFactor = reducedMotion.current ? 1 : 0.18;
 
-    const tick = () => {
-      // Seek threshold: mobile gets a larger gap to reduce decoder pressure
-      const threshold = isMobile.current ? 0.002 : 0.0005;
-
-      if (vidReady.current && vidDur.current > 0) {
-        const raw = targetP.current;
-        if (Math.abs(raw - lastScrollP) > threshold) {
-          lastScrollP     = raw;
-          vid.currentTime = Math.min(raw * vidDur.current, vidDur.current - 0.001);
+    const raf = () => {
+      // — Video scrub —
+      if (vid.duration && isFinite(vid.duration)) {
+        if (!vid.seeking) {
+          // Lerp curRef toward targetRef. When vid.seeking was true we skipped writes
+          // but curRef kept lerping, so we snap to the freshest target the moment decoder is free.
+          curRef.current += (targetRef.current - curRef.current) * lerpFactor;
+          const t   = Math.min(curRef.current, 0.999) * vid.duration;
+          // Coarser eps on mobile = fewer decoder invocations = no freeze on fast scroll
+          const eps = isMobileRef.current ? 0.02 : 0.008;
+          if (Math.abs(vid.currentTime - t) > eps) {
+            try { vid.currentTime = t; } catch (_) {/* swallow DOMException on rapid seeks */}
+          }
         }
+        // When seeking=true: do nothing to the video this frame.
+        // curRef keeps lerping so it's already at the right target when decoder becomes free.
       }
 
-      // ── TEXT: lerped progress for smooth transitions ──────────
-      displayP.current += (targetP.current - displayP.current) * 0.09;
+      // — Text scenes: separate slower lerp, unaffected by seeking guard —
+      displayP.current += (targetRef.current - displayP.current) * 0.09;
       const p = displayP.current;
 
       /*
-        Scene map (p = 0→1 over 500vh):
+        Scene map (p = 0→1):
         S1 Brand      enter 0.00→0.10  hold→0.30  exit 0.30→0.42
         S2 Philosophy enter 0.34→0.47  hold→0.60  exit 0.60→0.72
         S3 Legacy+CTA enter 0.66→0.78  hold→1.00
@@ -166,40 +228,56 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
       set(ctaRef, scene(p, 0.72, 0.82, 0.99, 1.00), `translateY(${enterT(p, 0.72, 0.82) * 20}px)`);
 
       if (hintRef.current)
-        hintRef.current.style.opacity = String(Math.max(0, 1 - targetP.current / 0.08));
+        hintRef.current.style.opacity = String(Math.max(0, 1 - targetRef.current / 0.08));
       if (barRef.current)
-        barRef.current.style.transform = `scaleX(${targetP.current})`;
+        barRef.current.style.transform = `scaleX(${targetRef.current})`;
 
-      rafId.current = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(raf);
     };
 
-    rafId.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId.current);
+    rafRef.current = requestAnimationFrame(raf);
+    return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
   return (
-    <section ref={sectionRef} id="home"
-      style={{ height: `${SECTION_HEIGHT_DESKTOP}vh` }} className="relative">
+    <section
+      ref={sectionRef}
+      id="home"
+      style={{ height: `${SECTION_HEIGHT_DESKTOP}vh` }}
+      className="relative"
+    >
       <div className="sticky top-0 h-screen overflow-hidden bg-[#022921]">
 
-        {/* POSTER — visible instantly */}
+        {/* POSTER — shown until first seeked event fires (iOS-safe reveal) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={POSTER_SRC} alt="" aria-hidden
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ zIndex: 0 }} />
+        <img
+          src={POSTER_SRC}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+          style={{ zIndex: posterVisible ? 2 : 0, opacity: posterVisible ? 1 : 0 }}
+        />
 
-        {/* VIDEO — src set in useEffect based on device */}
-        <video ref={videoRef} poster={POSTER_SRC}
-          muted playsInline preload="auto" disablePictureInPicture aria-hidden
-          width={1920} height={1080}
+        {/* VIDEO — src/blob set in useEffect; hidden by poster until first seeked */}
+        <video
+          ref={videoRef}
+          poster={POSTER_SRC}
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          aria-hidden
+          width={1920}
+          height={1080}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ zIndex: 1 }} />
+          style={{ zIndex: 1 }}
+        />
 
-        {/* OVERLAYS — neutral black, preserve natural video colors */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2,
+        {/* OVERLAYS */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3,
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, transparent 25%, transparent 50%, rgba(0,0,0,0.55) 100%)'
         }} />
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2,
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3,
           background: 'linear-gradient(to right, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.08) 45%, transparent 100%)'
         }} />
 
@@ -230,7 +308,6 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
         {/* S2 — PHILOSOPHY */}
         <div className="absolute inset-0 flex flex-col justify-center items-end pr-8 sm:pr-14 lg:pr-20 pointer-events-none" style={{ zIndex: 5 }}>
           <div ref={philoRef} style={{ opacity: 0, willChange: 'opacity,transform' }} className="flex items-stretch gap-7 max-w-[680px]">
-            {/* dark backdrop so text is always legible regardless of video frame */}
             <div className="absolute inset-0 -right-8 sm:-right-14 lg:-right-20 -left-6"
               style={{ background: 'radial-gradient(ellipse 80% 60% at 80% 50%, rgba(0,0,0,0.45) 0%, transparent 100%)', zIndex: -1 }} />
             <div className="w-px self-stretch bg-gradient-to-b from-transparent via-[#A8874A] to-transparent flex-shrink-0" />
@@ -277,12 +354,14 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
             </div>
           </div>
           <div ref={ctaRef} style={{ opacity: 0, willChange: 'opacity,transform' }} className="flex items-center gap-3 pointer-events-auto">
-            <button onClick={onEnquireClick}
+            <button
+              onClick={onEnquireClick}
               className="font-label tracking-[0.28em] uppercase font-semibold transition-all duration-300 px-8 py-3.5 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A]"
               style={{ fontSize: 'clamp(0.6rem,0.85vw,0.7rem)' }}>
               Enquire Now
             </button>
-            <button onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
+            <button
+              onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })}
               className="font-label tracking-[0.28em] uppercase font-medium transition-all duration-300 px-8 py-3.5 border border-white/30 text-white/80 hover:border-[#A8874A] hover:text-[#A8874A] flex items-center gap-3 group"
               style={{ fontSize: 'clamp(0.6rem,0.85vw,0.7rem)', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>
               Discover Estate
@@ -292,9 +371,11 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
         </div>
 
         {/* SCROLL HINT */}
-        <div ref={hintRef}
+        <div
+          ref={hintRef}
           className="absolute bottom-10 left-8 sm:left-14 lg:left-20 flex items-center gap-4 pointer-events-none"
-          style={{ zIndex: 10, willChange: 'opacity' }}>
+          style={{ zIndex: 10, willChange: 'opacity' }}
+        >
           <div className="w-px h-10 overflow-hidden">
             <div className="w-full h-full bg-gradient-to-b from-[#A8874A] to-transparent"
               style={{ animation: 'scrubPulse 2s ease-in-out infinite' }} />
@@ -316,7 +397,7 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
   );
 }
 
-/* ── math ─────────────────────────────────────── */
+/* ── math helpers ──────────────────────────────────────── */
 const cl     = (v: number) => Math.min(1, Math.max(0, v));
 const norm   = (p: number, s: number, e: number) => cl((p - s) / Math.max(0.001, e - s));
 const eOut   = (t: number) => 1 - Math.pow(1 - t, 3);
