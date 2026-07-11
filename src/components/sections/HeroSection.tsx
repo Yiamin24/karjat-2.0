@@ -91,15 +91,28 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     const section = sectionRef.current;
     if (!section) return;
 
-    const onScroll = () => {
+    const calc = () => {
       const rect   = section.getBoundingClientRect();
       const travel = section.offsetHeight - window.innerHeight;
       targetP.current = Math.min(1, Math.max(0, -rect.top / travel));
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
+    // On mobile, scroll events can be coalesced/delayed by the browser.
+    // touchmove fires synchronously during the gesture — more reliable.
+    let touchThrottle = 0;
+    const onTouch = () => {
+      touchThrottle++;
+      if (touchThrottle % 2 === 0) calc(); // every 2nd touch event
+    };
+
+    window.addEventListener('scroll',    calc,    { passive: true });
+    window.addEventListener('touchmove', onTouch, { passive: true });
+    calc();
+
+    return () => {
+      window.removeEventListener('scroll',    calc);
+      window.removeEventListener('touchmove', onTouch);
+    };
   }, []);
 
   /* ── MASTER RAF: video seek + text + UI ──────────────── */
@@ -110,11 +123,12 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
     let lastScrollP = -1;
 
     const tick = () => {
-      // ── VIDEO: only seek when scroll actually changed ──────────
-      // Avoids hammering decoder at 60fps when user isn't scrolling
+      // Seek threshold: mobile gets a larger gap to reduce decoder pressure
+      const threshold = isMobile.current ? 0.002 : 0.0005;
+
       if (vidReady.current && vidDur.current > 0) {
         const raw = targetP.current;
-        if (Math.abs(raw - lastScrollP) > 0.0005) {
+        if (Math.abs(raw - lastScrollP) > threshold) {
           lastScrollP     = raw;
           vid.currentTime = Math.min(raw * vidDur.current, vidDur.current - 0.001);
         }
