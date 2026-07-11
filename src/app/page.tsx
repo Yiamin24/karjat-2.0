@@ -18,7 +18,7 @@ export default function HomePage() {
   const [showContactForm, setShowContactForm] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setShowContactForm(true), 5000);
+    const t = setTimeout(() => setShowContactForm(true), 8000);
     return () => clearTimeout(t);
   }, []);
 
