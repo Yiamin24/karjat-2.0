@@ -22,7 +22,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# NOTE: public/hero-scrub-trimmed.mp4 is intentionally tracked in git
-# so it deploys with the project on Vercel.
-# If the file exceeds GitHub's 100MB limit, move it to a CDN and
-# update VIDEO_SRC in HeroSection.tsx accordingly.
+# Large media — served from GitHub Releases CDN, not committed to repo
+public/*.mp4
+public/Hero-poster.jpg
+public/hero-frames/
