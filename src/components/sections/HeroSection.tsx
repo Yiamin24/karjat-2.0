@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 
-const VIDEO_SRC = '/01. Karjat blooms.V5.mp4';
+const VIDEO_SRC = 'https://video.wixstatic.com/video/cef78c_6489c7c7d817487d8ae13c9390f40a0c/1080p/mp4/file.mp4';
 const POSTER_SRC = '/Hero-poster.jpg';
 
 export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => void }) {
