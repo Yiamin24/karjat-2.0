@@ -42,12 +42,12 @@ export default function HeroSection({ onEnquireClick }: { onEnquireClick: () => 
         src={VIDEO_SRC}
         poster={POSTER_SRC}
         autoPlay loop muted playsInline disablePictureInPicture aria-hidden
-        className="absolute inset-0 w-full h-full object-cover opacity-90"
+        className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* ── OVERLAY — strong enough for white text on green/bright video ── */}
+      {/* ── OVERLAY — light, lets video colors through while keeping text legible ── */}
       <div className="absolute inset-0" style={{
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.2) 30%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.75) 100%)',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.25) 65%, rgba(0,0,0,0.55) 100%)',
       }} />
 
       {/* ── CONTENT GRID ── */}
