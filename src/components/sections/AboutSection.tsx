@@ -16,7 +16,7 @@ const useReveal = (delay = 0) => {
   return ref;
 };
 
-export default function AboutSection() {
+export default function AboutSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const r1 = useReveal(0), r2 = useReveal(150), r3 = useReveal(300), r4 = useReveal(100);
 
   return (
@@ -47,6 +47,12 @@ export default function AboutSection() {
               <div className="pt-4 flex items-center gap-4">
                 <div className="h-px w-10 bg-[#A8874A]" />
                 <span className="font-label text-xs tracking-[0.25em] uppercase text-[#A8874A] font-semibold">Rudram Realty · Est. Karjat</span>
+              </div>
+              <div className="pt-6">
+                <button onClick={onEnquireClick}
+                  className="font-label tracking-[0.25em] uppercase font-semibold px-7 py-3 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] transition-all duration-300 text-[11px]">
+                  Enquire Now
+                </button>
               </div>
             </div>
           </div>

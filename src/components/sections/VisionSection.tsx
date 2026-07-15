@@ -23,7 +23,7 @@ const highlights = [
   { number: '04', title: 'Smart Infrastructure', body: '24/7 security, underground utilities, high-speed connectivity — invisible yet omnipresent.' },
 ];
 
-export default function VisionSection() {
+export default function VisionSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const r1 = useReveal(0), r2 = useReveal(200), r3 = useReveal(350), r4 = useReveal(100);
 
   return (
@@ -71,6 +71,10 @@ export default function VisionSection() {
               <p className="font-paragraph text-base md:text-lg text-[#EEE4DA]/65 leading-relaxed border-l-2 border-[#44564C] pl-6 mb-8">
                 We believe that the finest residences are those in harmony with their surroundings. Karjat Blooms was conceived as a living statement — a place where the architecture defers to nature, and where luxury is measured not in gilded surfaces, but in uninterrupted views, still mornings, and the freedom to build a life entirely on your own terms.
               </p>
+              <button onClick={onEnquireClick}
+                className="font-label tracking-[0.25em] uppercase font-semibold px-7 py-3 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] transition-all duration-300 text-[11px]">
+                Schedule a Visit
+              </button>
             </div>
             <div ref={r3} className="reveal-on-scroll grid sm:grid-cols-2 gap-5">
               {highlights.map((h, i) => (

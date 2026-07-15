@@ -62,7 +62,7 @@ const AMENITIES = [
 // Duplicate for seamless loop
 const ITEMS = [...AMENITIES, ...AMENITIES];
 
-export default function InfrastructureSection() {
+export default function InfrastructureSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const headerRef  = useReveal(0);
   const trackRef   = useRef<HTMLDivElement>(null);
 
@@ -90,6 +90,10 @@ export default function InfrastructureSection() {
           <p className="font-paragraph text-sm text-[#EEE4DA]/45 max-w-[280px] leading-relaxed border-l border-[#A8874A]/30 pl-4">
             Every detail of Karjat Blooms is designed to elevate daily life — from grand entrances to serene gardens.
           </p>
+          <button onClick={onEnquireClick}
+            className="font-label tracking-[0.25em] uppercase font-semibold px-6 py-2.5 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] transition-all duration-300 text-[11px]">
+            Enquire Now
+          </button>
         </div>
 
       </div>

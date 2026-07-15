@@ -49,7 +49,7 @@ const LIFESTYLE = [
   },
 ];
 
-export default function LifestyleSection() {
+export default function LifestyleSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const headerRef = useReveal(0);
 
   return (
@@ -78,6 +78,12 @@ export default function LifestyleSection() {
           <p className="font-paragraph text-base md:text-lg text-[#EEE4DA]/55 leading-relaxed max-w-2xl border-l-2 border-[#A8874A]/40 pl-5">
             Beyond a residence — a way of life. Every detail of Karjat Blooms is calibrated to deliver an existence of meaning, stillness, and understated elegance.
           </p>
+          <div className="pt-5">
+            <button onClick={onEnquireClick}
+              className="font-label tracking-[0.25em] uppercase font-semibold px-7 py-3 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] transition-all duration-300 text-[11px]">
+              Book a Site Visit
+            </button>
+          </div>
         </div>
 
         {/* ── CARDS: alternating layout ── */}

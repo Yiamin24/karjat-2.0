@@ -28,11 +28,11 @@ export default function HomePage() {
 
       <HeroSection onEnquireClick={() => setShowContactForm(true)} />
 
-      <AboutSection />
-      <LocationSection />
-      <VisionSection />
-      <InfrastructureSection />
-      <LifestyleSection />
+      <AboutSection onEnquireClick={() => setShowContactForm(true)} />
+      <LocationSection onEnquireClick={() => setShowContactForm(true)} />
+      <VisionSection onEnquireClick={() => setShowContactForm(true)} />
+      <InfrastructureSection onEnquireClick={() => setShowContactForm(true)} />
+      <LifestyleSection onEnquireClick={() => setShowContactForm(true)} />
       <MasterplanSection onViewMasterPlan={() => setShowMasterPlanModal(true)} />
       <ContactSection onContactClick={() => setShowContactForm(true)} />
 

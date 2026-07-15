@@ -62,7 +62,7 @@ const LANDMARKS = [
   },
 ];
 
-export default function LocationSection() {
+export default function LocationSection({ onEnquireClick }: { onEnquireClick: () => void }) {
   const r1 = useReveal(0);
   const r2 = useReveal(100);
   const r3 = useReveal(180);
@@ -92,6 +92,10 @@ export default function LocationSection() {
           <p className="font-paragraph text-sm text-[#EEE4DA]/45 max-w-[300px] leading-relaxed border-l border-[#A8874A]/30 pl-4">
             Seclusion without isolation — at the confluence of expressways, rail, and nature.
           </p>
+          <button onClick={onEnquireClick}
+            className="font-label tracking-[0.25em] uppercase font-semibold px-6 py-2.5 bg-[#A8874A] text-[#022921] hover:bg-[#BF9A5A] transition-all duration-300 text-[11px]">
+            Book a Visit
+          </button>
         </div>
 
         {/* ══════════════════════════════════════════════
