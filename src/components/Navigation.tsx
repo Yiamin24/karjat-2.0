@@ -36,10 +36,10 @@ export default function Navigation({ onEnquireClick }: NavigationProps) {
     const handleScroll = () => {
       const hero = document.getElementById('home');
       if (hero) {
-        const heroBottom = hero.offsetTop + hero.offsetHeight;
-        setScrolled(window.scrollY >= heroBottom - window.innerHeight);
+        // Transparent while inside the hero, solid once scrolled past it
+        setScrolled(window.scrollY >= hero.offsetHeight - 80);
       } else {
-        setScrolled(window.scrollY > window.innerHeight);
+        setScrolled(window.scrollY > 100);
       }
       if (!userClicked) {
         const ids = ['about', 'location', 'vision', 'amenities', 'lifestyle', 'masterplan', 'contact'];
